@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import logo from "@/images/logo.png"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -49,12 +50,13 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <div className="w-full max-w-[400px] space-y-6">
         <div className="flex flex-col items-center space-y-4 text-center">
-          <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-background bg-white shadow-xl">
+          <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-background bg-white shadow-xl flex items-center justify-center">
             <Image
-              src="/src/images/logo.png"
+              src={logo}
               alt="LODS Logo"
-              fill
-              className="object-contain p-1"
+              width={80}
+              height={80}
+              className="object-contain"
               priority
             />
           </div>

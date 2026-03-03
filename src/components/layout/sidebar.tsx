@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -15,6 +16,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import logo from "@/images/logo.png"
 
 const routes = [
   {
@@ -60,12 +62,13 @@ export function Sidebar() {
   return (
     <div className="space-y-4 py-4 flex flex-col h-full bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
       <div className="px-6 py-4 flex items-center mb-6">
-        <div className="relative h-10 w-10 bg-white rounded-lg overflow-hidden mr-3 border border-white/20">
+        <div className="relative h-10 w-10 bg-white rounded-lg overflow-hidden mr-3 border border-white/20 flex items-center justify-center">
           <Image
-            src="/src/images/logo.png"
+            src={logo}
             alt="LODS Logo"
-            fill
-            className="object-contain p-1"
+            width={32}
+            height={32}
+            className="object-contain"
           />
         </div>
         <h1 className="text-xl font-bold tracking-tight text-white">LODS Terminal</h1>
