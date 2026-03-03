@@ -1,0 +1,74 @@
+
+{
+  "entities": {
+    "Order": {
+      "title": "Order",
+      "description": "A delivery order record",
+      "type": "object",
+      "properties": {
+        "bookingNo": { "type": "string" },
+        "customerName": { "type": "string" },
+        "merchant": { "type": "string" },
+        "status": { 
+          "type": "string", 
+          "enum": ["pending", "in-transit", "picked-up", "delivered", "cancelled"] 
+        },
+        "finalTotal": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "deliveryLocation": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" },
+            "address": { "type": "string" }
+          }
+        }
+      },
+      "required": ["bookingNo", "customerName", "status", "finalTotal"]
+    },
+    "User": {
+      "title": "User",
+      "description": "App users including managers and riders",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["manager", "rider"] },
+        "status": { "type": "string", "enum": ["online", "offline"] },
+        "location": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        }
+      }
+    },
+    "Merchant": {
+      "title": "Merchant",
+      "description": "Partner merchants",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "address": { "type": "string" }
+      }
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of all delivery orders"
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles and status"
+    },
+    "/merchants/{merchantId}": {
+      "schema": "Merchant",
+      "description": "Registered merchants"
+    }
+  }
+}

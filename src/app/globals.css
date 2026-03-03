@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -10,28 +11,34 @@
     --card-foreground: 240 10% 3.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 240 10% 3.9%;
-    --primary: 261 71% 65%; /* LODS Purple */
+    --primary: 261 71% 60%; /* #8B5CF6 Purple */
     --primary-foreground: 0 0% 98%;
     --secondary: 240 4.8% 95.9%;
     --secondary-foreground: 240 5.9% 10%;
     --muted: 240 4.8% 95.9%;
     --muted-foreground: 240 3.8% 46.1%;
-    --accent: 45 93% 66%; /* LODS Yellow */
+    --accent: 45 93% 66%; /* LODS Golden Yellow */
     --accent-foreground: 240 5.9% 10%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 240 5.9% 90%;
     --input: 240 5.9% 90%;
-    --ring: 261 71% 65%;
+    --ring: 261 71% 60%;
     --radius: 0.75rem;
-    --sidebar-background: 261 71% 20%;
+    --sidebar-background: 261 71% 15%;
     --sidebar-foreground: 0 0% 98%;
-    --sidebar-primary: 261 71% 65%;
+    --sidebar-primary: 261 71% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 261 71% 30%;
+    --sidebar-accent: 261 71% 25%;
     --sidebar-accent-foreground: 0 0% 98%;
-    --sidebar-border: 261 71% 35%;
-    --sidebar-ring: 261 71% 65%;
+    --sidebar-border: 261 71% 30%;
+    --sidebar-ring: 261 71% 60%;
+  }
+
+  .dark {
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+    /* ... rest of dark mode if needed */
   }
 }
 
@@ -42,4 +49,15 @@
   body {
     @apply bg-background text-foreground font-body;
   }
+}
+
+/* Custom styles for that high-tech terminal feel */
+.stats-card-pulse {
+  animation: borderPulse 4s infinite;
+}
+
+@keyframes borderPulse {
+  0% { border-color: transparent; }
+  50% { border-color: hsl(var(--primary) / 0.5); }
+  100% { border-color: transparent; }
 }

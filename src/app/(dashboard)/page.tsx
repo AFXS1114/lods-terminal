@@ -1,129 +1,135 @@
+
 "use client"
 
+import { useState, useEffect, useMemo } from "react"
+import { collection, query, onSnapshot, where, orderBy, limit, Timestamp } from "firebase/firestore"
+import { db } from "@/firebase/config"
 import { OrderStats } from "@/components/dashboard/order-stats"
+import { LiveOrderFeed } from "@/components/dashboard/live-order-feed"
+import { OperationsMap } from "@/components/dashboard/operations-map"
+import { QuickActions } from "@/components/dashboard/quick-actions"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useToast } from "@/hooks/use-toast"
 
-const recentOrders = [
-  {
-    id: "ORD-7281",
-    customer: "John Doe",
-    merchant: "Gourmet Foods",
-    status: "Active",
-    time: "2 mins ago",
-    amount: "$24.50",
-  },
-  {
-    id: "ORD-7282",
-    customer: "Alice Smith",
-    merchant: "Tech Store",
-    status: "Pending",
-    time: "15 mins ago",
-    amount: "$120.00",
-  },
-  {
-    id: "ORD-7283",
-    customer: "Bob Wilson",
-    merchant: "Pharmacy Plus",
-    status: "Completed",
-    time: "1 hour ago",
-    amount: "$45.20",
-  },
-  {
-    id: "ORD-7284",
-    customer: "Sarah Jane",
-    merchant: "Bakery Delight",
-    status: "Active",
-    time: "2 hours ago",
-    amount: "$15.75",
-  },
-]
+export default function MissionControlPage() {
+  const [orders, setOrders] = useState<any[]>([])
+  const [riders, setRiders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
-export default function DashboardPage() {
+  // Real-time listener for Orders
+  useEffect(() => {
+    const ordersQuery = query(
+      collection(db, "orders"),
+      orderBy("createdAt", "desc"),
+      limit(50)
+    )
+
+    const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
+      const ordersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      setOrders(ordersData)
+      setLoading(false)
+    }, (error) => {
+      console.error("Firestore Orders Error:", error)
+      toast({
+        title: "Connection Error",
+        description: "Failed to sync orders in real-time.",
+        variant: "destructive"
+      })
+    })
+
+    return () => unsubscribe()
+  }, [toast])
+
+  // Real-time listener for Online Riders
+  useEffect(() => {
+    const ridersQuery = query(
+      collection(db, "users"),
+      where("role", "==", "rider"),
+      where("status", "==", "online")
+    )
+
+    const unsubscribe = onSnapshot(ridersQuery, (snapshot) => {
+      const ridersData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }))
+      setRiders(ridersData)
+    })
+
+    return () => unsubscribe()
+  }, [])
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const active = orders.filter(o => o.status === 'pending' || o.status === 'in-transit').length
+    const online = riders.length
+    const pending = orders.filter(o => o.status === 'pending').length
+    
+    // Revenue for today
+    const startOfDay = new Date()
+    startOfDay.setHours(0, 0, 0, 0)
+    const todayRevenue = orders
+      .filter(o => {
+        const date = o.createdAt instanceof Timestamp ? o.createdAt.toDate() : new Date(o.createdAt)
+        return date >= startOfDay && o.status !== 'cancelled'
+      })
+      .reduce((acc, curr) => acc + (curr.finalTotal || 0), 0)
+
+    return { active, online, revenue: todayRevenue, pending }
+  }, [orders, riders])
+
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight">Logistics Dashboard</h2>
-        <p className="text-muted-foreground">Welcome back, Administrator. Here's what's happening today.</p>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-3xl font-bold tracking-tight text-primary">Mission Control</h2>
+          <p className="text-muted-foreground">LODS Logistics Real-time Operations Center</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Live System Active</span>
+        </div>
       </div>
 
-      <OrderStats />
+      {/* Main Stats Bar */}
+      <OrderStats 
+        activeOrders={stats.active} 
+        onlineRiders={stats.online} 
+        todayRevenue={stats.revenue} 
+        pendingBookings={stats.pending} 
+      />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 shadow-sm">
-          <CardHeader>
-            <CardTitle>Recent Orders</CardTitle>
-            <CardDescription>A live view of current delivery operations.</CardDescription>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-12">
+        {/* Live Order Feed */}
+        <Card className="lg:col-span-5 shadow-lg border-primary/10">
+          <CardHeader className="pb-3 border-b">
+            <CardTitle className="text-lg">Live Order Feed</CardTitle>
+            <CardDescription>Most recent delivery activities</CardDescription>
           </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Order ID</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Merchant</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentOrders.map((order) => (
-                  <TableRow key={order.id}>
-                    <TableCell className="font-medium">{order.id}</TableCell>
-                    <TableCell>{order.customer}</TableCell>
-                    <TableCell>{order.merchant}</TableCell>
-                    <TableCell>
-                      <Badge variant={
-                        order.status === "Active" ? "default" : 
-                        order.status === "Pending" ? "outline" : "secondary"
-                      }>
-                        {order.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{order.amount}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <CardContent className="p-0">
+            <LiveOrderFeed orders={orders.slice(0, 8)} />
           </CardContent>
         </Card>
 
-        <Card className="col-span-3 shadow-sm">
-          <CardHeader>
-            <CardTitle>Active Riders</CardTitle>
-            <CardDescription>Available riders in the field.</CardDescription>
+        {/* Operations Map */}
+        <Card className="lg:col-span-4 shadow-lg border-primary/10 overflow-hidden">
+          <CardHeader className="pb-3 border-b">
+            <CardTitle className="text-lg">Operations Map</CardTitle>
+            <CardDescription>Real-time fleet & destination view</CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-8">
-              {[
-                { name: "Michael Ross", status: "On Delivery", avatar: "MR" },
-                { name: "Jessica Day", status: "Available", avatar: "JD" },
-                { name: "Nick Miller", status: "Break", avatar: "NM" },
-                { name: "Cece Parekh", status: "On Delivery", avatar: "CP" },
-              ].map((rider) => (
-                <div key={rider.name} className="flex items-center">
-                  <Avatar className="h-9 w-9">
-                    <AvatarImage src={`https://picsum.photos/seed/${rider.name}/40/40`} />
-                    <AvatarFallback>{rider.avatar}</AvatarFallback>
-                  </Avatar>
-                  <div className="ml-4 space-y-1">
-                    <p className="text-sm font-medium leading-none">{rider.name}</p>
-                    <p className="text-sm text-muted-foreground">{rider.status}</p>
-                  </div>
-                  <div className="ml-auto font-medium">
-                    <div className={cn(
-                      "h-2 w-2 rounded-full",
-                      rider.status === "Available" ? "bg-green-500" : 
-                      rider.status === "Break" ? "bg-orange-400" : "bg-blue-500"
-                    )} />
-                  </div>
-                </div>
-              ))}
-            </div>
+          <CardContent className="p-0 h-[400px]">
+            <OperationsMap riders={riders} orders={orders} />
           </CardContent>
         </Card>
+
+        {/* Quick Actions Sidebar */}
+        <div className="lg:col-span-3 space-y-6">
+          <QuickActions />
+        </div>
       </div>
     </div>
   )
