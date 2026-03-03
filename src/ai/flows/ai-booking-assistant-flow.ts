@@ -1,4 +1,4 @@
-'use server';
+
 /**
  * @fileOverview An AI assistant for streamlining delivery booking creation.
  *
