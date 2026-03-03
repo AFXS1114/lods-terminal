@@ -32,9 +32,17 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  experimental: {
+    turbo: {
+      resolveAlias: {
+        // Fixes Turbopack errors for Node.js modules in the browser
+        'async_hooks': 'empty',
+      },
+    },
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // Fixes npm packages that depend on `fs`, `path`, etc. for client-side builds
+      // Fixes Webpack errors for npm packages that depend on Node.js modules for client-side builds
       config.resolve.fallback = {
         ...config.resolve.fallback,
         async_hooks: false,
@@ -46,6 +54,10 @@ const nextConfig: NextConfig = {
         child_process: false,
         dns: false,
         http2: false,
+        crypto: false,
+        stream: false,
+        buffer: false,
+        util: false,
       };
     }
     return config;
