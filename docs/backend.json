@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "Order": {
@@ -9,6 +8,7 @@
         "bookingNo": { "type": "string" },
         "customerName": { "type": "string" },
         "merchant": { "type": "string" },
+        "merchantId": { "type": "string" },
         "status": { 
           "type": "string", 
           "enum": ["pending", "in-transit", "picked-up", "delivered", "cancelled"] 
@@ -44,15 +44,20 @@
         }
       }
     },
-    "Partner": {
-      "title": "Partner",
+    "Merchant": {
+      "title": "Merchant",
       "description": "Partner merchants or delivery companies",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
         "category": { "type": "string" },
-        "address": { "type": "string" }
-      }
+        "address": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phone": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "inactive"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "category", "status"]
     },
     "Customer": {
       "title": "Customer",
@@ -77,9 +82,9 @@
       "schema": "User",
       "description": "User profiles and status"
     },
-    "/partners/{partnerId}": {
-      "schema": "Partner",
-      "description": "Registered partners (merchants/logistics)"
+    "/merchants/{merchantId}": {
+      "schema": "Merchant",
+      "description": "Registered partner merchants"
     },
     "/customers/{customerId}": {
       "schema": "Customer",

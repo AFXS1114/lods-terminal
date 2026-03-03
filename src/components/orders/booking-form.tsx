@@ -1,10 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { Sparkles, Loader2, Package, MapPin, Calendar, Info } from "lucide-react"
+import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from "firebase/firestore"
+import { db } from "@/firebase/config"
+import { Sparkles, Loader2, Package, MapPin, Info, Store } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -18,20 +20,26 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { aiBookingAssistant } from "@/ai/flows/ai-booking-assistant-flow"
 
 const bookingSchema = z.object({
-  pickupAddress: z.string().min(10, "Address is too short"),
-  deliveryAddress: z.string().min(10, "Address is too short"),
-  itemDescription: z.string().min(5, "Please describe the items"),
+  pickupAddress: z.string().min(5, "Address is too short"),
+  deliveryAddress: z.string().min(5, "Address is too short"),
+  itemDescription: z.string().min(3, "Please describe the items"),
+  merchantId: z.string().min(1, "Please select a merchant"),
   packageType: z.string().optional(),
   estimatedWeight: z.string().optional(),
   deliveryWindow: z.string().optional(),
+  customerName: z.string().min(2, "Customer name required"),
+  finalTotal: z.string().default("0"),
 })
 
 export function BookingForm() {
   const [isAiLoading, setIsAiLoading] = useState(false)
+  const [merchants, setMerchants] = useState<any[]>([])
+  const [loadingMerchants, setLoadingMerchants] = useState(true)
   const { toast } = useToast()
   
   const form = useForm<z.infer<typeof bookingSchema>>({
@@ -40,11 +48,24 @@ export function BookingForm() {
       pickupAddress: "",
       deliveryAddress: "",
       itemDescription: "",
+      merchantId: "",
       packageType: "",
       estimatedWeight: "",
       deliveryWindow: "",
+      customerName: "",
+      finalTotal: "15.00",
     },
   })
+
+  useEffect(() => {
+    const q = query(collection(db, "merchants"), orderBy("name", "asc"))
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }))
+      setMerchants(data)
+      setLoadingMerchants(false)
+    })
+    return () => unsubscribe()
+  }, [])
 
   async function handleAiAssistant() {
     const values = form.getValues()
@@ -84,25 +105,59 @@ export function BookingForm() {
     }
   }
 
-  function onSubmit(values: z.infer<typeof bookingSchema>) {
-    toast({
-      title: "Booking Created",
-      description: "The delivery order has been successfully logged.",
-    })
-    form.reset()
+  async function onSubmit(values: z.infer<typeof bookingSchema>) {
+    try {
+      const selectedMerchant = merchants.find(m => m.id === values.merchantId)
+      
+      await addDoc(collection(db, "orders"), {
+        bookingNo: `LODS-${Math.floor(10000 + Math.random() * 90000)}`,
+        customerName: values.customerName,
+        merchant: selectedMerchant?.name || "Unknown Merchant",
+        merchantId: values.merchantId,
+        status: "pending",
+        finalTotal: parseFloat(values.finalTotal),
+        createdAt: serverTimestamp(),
+        deliveryLocation: {
+          address: values.deliveryAddress,
+          lat: 6.5244,
+          lng: 3.3792
+        },
+        pickupLocation: {
+          address: values.pickupAddress
+        },
+        itemDetails: {
+          description: values.itemDescription,
+          packageType: values.packageType,
+          weight: values.estimatedWeight,
+          window: values.deliveryWindow
+        }
+      })
+
+      toast({
+        title: "Booking Created",
+        description: "The delivery order has been successfully logged.",
+      })
+      form.reset()
+    } catch (error: any) {
+      toast({
+        variant: "destructive",
+        title: "Creation Failed",
+        description: error.message
+      })
+    }
   }
 
   return (
-    <Card className="w-full max-w-4xl mx-auto shadow-md">
-      <CardHeader className="border-b bg-muted/30">
+    <Card className="w-full max-w-4xl mx-auto shadow-md border-none overflow-hidden">
+      <CardHeader className="border-b bg-muted/20">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Create Delivery Booking</CardTitle>
-            <CardDescription>Enter shipment details below. Use the AI assistant for faster entry.</CardDescription>
+            <CardDescription>Enter shipment details below or use AI to auto-fill metrics.</CardDescription>
           </div>
           <Button 
             variant="outline" 
-            className="border-primary text-primary hover:bg-primary/5"
+            className="border-primary text-primary hover:bg-primary/5 h-9"
             onClick={handleAiAssistant}
             disabled={isAiLoading}
           >
@@ -114,10 +169,10 @@ export function BookingForm() {
       <CardContent className="pt-6">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 rounded-xl border bg-muted/5">
               <div className="space-y-4">
-                <div className="flex items-center gap-2 font-semibold text-primary mb-2">
-                  <MapPin className="h-4 w-4" /> Route Details
+                <div className="flex items-center gap-2 font-bold text-primary text-xs uppercase tracking-widest mb-2">
+                  <MapPin className="h-4 w-4" /> Route Intelligence
                 </div>
                 <FormField
                   control={form.control}
@@ -126,7 +181,7 @@ export function BookingForm() {
                     <FormItem>
                       <FormLabel>Pickup Address</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter full pickup location" {...field} />
+                        <Input placeholder="Enter full pickup location" {...field} className="bg-background" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -139,7 +194,7 @@ export function BookingForm() {
                     <FormItem>
                       <FormLabel>Delivery Address</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter destination address" {...field} />
+                        <Input placeholder="Enter destination address" {...field} className="bg-background" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -148,17 +203,42 @@ export function BookingForm() {
               </div>
 
               <div className="space-y-4">
-                <div className="flex items-center gap-2 font-semibold text-primary mb-2">
-                  <Package className="h-4 w-4" /> Item Details
+                <div className="flex items-center gap-2 font-bold text-primary text-xs uppercase tracking-widest mb-2">
+                  <Store className="h-4 w-4" /> Partner Details
                 </div>
                 <FormField
                   control={form.control}
-                  name="itemDescription"
+                  name="merchantId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>What are you shipping?</FormLabel>
+                      <FormLabel>Select Merchant</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="bg-background">
+                            <SelectValue placeholder={loadingMerchants ? "Loading partners..." : "Choose a merchant"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {merchants.map(m => (
+                            <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
+                          ))}
+                          {merchants.length === 0 && !loadingMerchants && (
+                            <div className="p-2 text-xs text-center text-muted-foreground">No merchants found. Add one in Partners Registry.</div>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="customerName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Customer Name</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Describe items (e.g. 2 boxes of electronics)" className="min-h-[100px]" {...field} />
+                        <Input placeholder="Recipient name" {...field} className="bg-background" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -167,17 +247,34 @@ export function BookingForm() {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-muted/20 rounded-lg border">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 font-bold text-primary text-xs uppercase tracking-widest">
+                <Package className="h-4 w-4" /> Shipment Specifications
+              </div>
+              <FormField
+                control={form.control}
+                name="itemDescription"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormControl>
+                      <Textarea placeholder="Item description (e.g. 2 Hot Pizzas, 1 Cold Drink)" className="min-h-[80px] bg-background" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-primary/5 rounded-xl border border-primary/10">
               <FormField
                 control={form.control}
                 name="packageType"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Package Type</FormLabel>
+                    <FormLabel className="text-xs">Package Type</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. Medium Box" {...field} />
+                      <Input placeholder="e.g. Medium Box" {...field} className="bg-background h-8" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -186,11 +283,10 @@ export function BookingForm() {
                 name="estimatedWeight"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Weight (kg)</FormLabel>
+                    <FormLabel className="text-xs">Weight (kg)</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. 5.5" type="text" {...field} />
+                      <Input placeholder="e.g. 1.2" {...field} className="bg-background h-8" />
                     </FormControl>
-                    <FormMessage />
                   </FormItem>
                 )}
               />
@@ -199,19 +295,32 @@ export function BookingForm() {
                 name="deliveryWindow"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Delivery Window</FormLabel>
+                    <FormLabel className="text-xs">Window</FormLabel>
                     <FormControl>
-                      <Input placeholder="e.g. 2-3 Days" {...field} />
+                      <Input placeholder="e.g. Same Day" {...field} className="bg-background h-8" />
                     </FormControl>
-                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="finalTotal"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-xs">Fee ($)</FormLabel>
+                    <FormControl>
+                      <Input type="text" {...field} className="bg-background h-8 font-bold text-primary" />
+                    </FormControl>
                   </FormItem>
                 )}
               />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t">
-              <Button type="button" variant="ghost" onClick={() => form.reset()}>Cancel</Button>
-              <Button type="submit" size="lg" className="px-8">Create Booking</Button>
+            <div className="flex justify-end gap-3 pt-6 border-t">
+              <Button type="button" variant="ghost" onClick={() => form.reset()}>Discard</Button>
+              <Button type="submit" size="lg" className="px-10 shadow-lg shadow-primary/20">
+                Confirm Booking
+              </Button>
             </div>
           </form>
         </Form>
