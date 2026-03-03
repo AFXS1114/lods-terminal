@@ -1,11 +1,12 @@
+
 "use client"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { signInWithEmailAndPassword } from "firebase/auth"
-import { auth } from "@/lib/firebase"
-import { Loader2, ArrowRight } from "lucide-react"
+import { auth } from "@/firebase/config"
+import { Loader2, ArrowRight, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -24,13 +25,13 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // In a real app with configured Firebase, this works. 
-      // For the demo, we'll allow a mock bypass or use actual Firebase if keys provided.
+      // Administrative Bypass for testing
       if (email === "admin@lods.com" && password === "password") {
         router.push("/dashboard")
         return
       }
 
+      // Live Firebase Authentication
       await signInWithEmailAndPassword(auth, email, password)
       router.push("/dashboard")
     } catch (error: any) {
@@ -65,9 +66,12 @@ export default function LoginPage() {
 
         <Card className="border-none shadow-2xl">
           <CardHeader className="space-y-1">
-            <CardTitle className="text-xl">Welcome back</CardTitle>
+            <CardTitle className="text-xl flex items-center gap-2">
+              <ShieldCheck className="h-5 w-5 text-primary" /> 
+              Manager Access
+            </CardTitle>
             <CardDescription>
-              Enter your credentials to access your dashboard
+              Enter your credentials to access the Mission Control dashboard
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -87,7 +91,7 @@ export default function LoginPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Button variant="link" className="px-0 font-normal text-xs text-primary">Forgot password?</Button>
+                  <Button variant="link" className="px-0 font-normal text-xs text-primary" type="button">Forgot password?</Button>
                 </div>
                 <Input 
                   id="password" 
@@ -100,7 +104,7 @@ export default function LoginPage() {
               </div>
               <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                Sign In
+                Enter Mission Control
               </Button>
             </form>
           </CardContent>
@@ -110,11 +114,11 @@ export default function LoginPage() {
                 <span className="w-full border-t"></span>
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Restricted Access</span>
+                <span className="bg-background px-2 text-muted-foreground">Secure Portal</span>
               </div>
             </div>
             <p className="px-8 text-center text-xs text-muted-foreground">
-              By logging in, you agree to the LODS internal code of conduct.
+              Unauthorized access to this terminal is strictly prohibited.
             </p>
           </CardFooter>
         </Card>
