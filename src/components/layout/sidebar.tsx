@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -27,31 +26,31 @@ const routes = [
   {
     label: "Orders",
     icon: Package,
-    href: "/orders",
+    href: "/dashboard/orders",
     color: "text-accent",
   },
   {
     label: "Live Tracker",
     icon: Map,
-    href: "/tracker",
+    href: "/dashboard/tracker",
     color: "text-accent",
   },
   {
     label: "Partners",
     icon: Store,
-    href: "/partners",
+    href: "/dashboard/partners",
     color: "text-accent",
   },
   {
     label: "Riders",
     icon: Truck,
-    href: "/riders",
+    href: "/dashboard/riders",
     color: "text-accent",
   },
   {
     label: "Settings",
     icon: Settings,
-    href: "/settings",
+    href: "/dashboard/settings",
   },
 ]
 
