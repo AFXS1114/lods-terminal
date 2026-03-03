@@ -2,9 +2,10 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
+import Image from "next/image"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase"
-import { Truck, Loader2, ArrowRight } from "lucide-react"
+import { Loader2, ArrowRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,15 +47,23 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <div className="w-full max-w-[400px] space-y-6">
-        <div className="flex flex-col items-center space-y-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary shadow-lg shadow-primary/20">
-            <Truck className="h-6 w-6 text-white" />
+        <div className="flex flex-col items-center space-y-4 text-center">
+          <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-background bg-white shadow-xl">
+            <Image
+              src="/src/images/logo.png"
+              alt="LODS Logo"
+              fill
+              className="object-contain p-1"
+              priority
+            />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">LODS Terminal</h1>
-          <p className="text-sm text-muted-foreground">Admin & Merchant Portal</p>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-foreground">LODS Terminal</h1>
+            <p className="text-sm text-muted-foreground">Lean On Delivery Services Portal</p>
+          </div>
         </div>
 
-        <Card className="border-none shadow-xl">
+        <Card className="border-none shadow-2xl">
           <CardHeader className="space-y-1">
             <CardTitle className="text-xl">Welcome back</CardTitle>
             <CardDescription>
@@ -72,12 +81,13 @@ export default function LoginPage() {
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  className="bg-muted/50"
                 />
               </div>
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
-                  <Button variant="link" className="px-0 font-normal text-xs">Forgot password?</Button>
+                  <Button variant="link" className="px-0 font-normal text-xs text-primary">Forgot password?</Button>
                 </div>
                 <Input 
                   id="password" 
@@ -85,9 +95,10 @@ export default function LoginPage() {
                   required 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  className="bg-muted/50"
                 />
               </div>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+              <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
                 Sign In
               </Button>
@@ -103,7 +114,7 @@ export default function LoginPage() {
               </div>
             </div>
             <p className="px-8 text-center text-xs text-muted-foreground">
-              By clicking continue, you agree to our Terms of Service and Privacy Policy.
+              By logging in, you agree to the LODS internal code of conduct.
             </p>
           </CardFooter>
         </Card>
