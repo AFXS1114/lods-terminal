@@ -1,0 +1,16 @@
+{
+  "placeholderImages": [
+    {
+      "id": "hero-logistics",
+      "description": "Logistics hub background",
+      "imageUrl": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=2000&auto=format&fit=crop",
+      "imageHint": "logistics warehouse"
+    },
+    {
+      "id": "avatar-admin",
+      "description": "Admin user profile",
+      "imageUrl": "https://picsum.photos/seed/admin/200/200",
+      "imageHint": "profile person"
+    }
+  ]
+}
