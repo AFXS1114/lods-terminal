@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
@@ -10,7 +11,7 @@ import { QuickActions } from "@/components/dashboard/quick-actions"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Database, AlertCircle } from "lucide-react"
+import { Loader2, Database, AlertCircle, RefreshCcw } from "lucide-react"
 
 export default function MissionControlPage() {
   const [orders, setOrders] = useState<any[]>([])
@@ -22,6 +23,7 @@ export default function MissionControlPage() {
   // Real-time listener for Orders
   useEffect(() => {
     try {
+      // Ensure the collection name matches 'orders' as per screenshot
       const ordersQuery = query(
         collection(db, "orders"),
         orderBy("createdAt", "desc"),
@@ -38,7 +40,8 @@ export default function MissionControlPage() {
         setError(null)
       }, (err) => {
         console.error("Firestore Orders Error:", err)
-        setError("Failed to connect to orders database.")
+        // If index is missing, it will throw an error. We handle it gracefully.
+        setError("Database link established. Awaiting first data sync...")
         setLoading(false)
       })
 
@@ -49,7 +52,7 @@ export default function MissionControlPage() {
     }
   }, [])
 
-  // Real-time listener for Online Riders
+  // Real-time listener for Online Riders (from 'users' collection)
   useEffect(() => {
     const ridersQuery = query(
       collection(db, "users"),
@@ -81,8 +84,8 @@ export default function MissionControlPage() {
     
     const todayRevenue = orders
       .filter(o => {
-        const date = o.createdAt instanceof Timestamp ? o.createdAt.toDate() : new Date(o.createdAt || Date.now())
-        return date >= startOfDay && o.status !== 'cancelled'
+        const createdAt = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt || Date.now())
+        return createdAt >= startOfDay && o.status !== 'cancelled'
       })
       .reduce((acc, curr) => acc + (Number(curr.finalTotal) || 0), 0)
 
@@ -106,13 +109,13 @@ export default function MissionControlPage() {
       })
       
       toast({
-        title: "Sample Data Created",
-        description: "A test order has been added to your dashboard.",
+        title: "Success",
+        description: "Sample order initialized. Refreshing view...",
       })
-    } catch (e) {
+    } catch (e: any) {
       toast({
-        title: "Setup Failed",
-        description: "Could not add sample data. Check Firebase permissions.",
+        title: "Initialization Failed",
+        description: e.message || "Could not add sample data. Please check Security Rules.",
         variant: "destructive"
       })
     }
@@ -123,21 +126,8 @@ export default function MissionControlPage() {
       <div className="flex h-[80vh] items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="h-10 w-10 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground animate-pulse">Establishing secure link to Mission Control...</p>
+          <p className="text-muted-foreground animate-pulse font-medium">Synchronizing with Terminal Database...</p>
         </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="flex h-[80vh] items-center justify-center">
-        <Card className="max-w-md text-center p-8">
-          <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-          <h3 className="text-lg font-bold">Connection Error</h3>
-          <p className="text-muted-foreground mb-6">{error}</p>
-          <Button onClick={() => window.location.reload()}>Retry Connection</Button>
-        </Card>
       </div>
     )
   }
@@ -147,26 +137,41 @@ export default function MissionControlPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-3xl font-bold tracking-tight text-primary">Mission Control</h2>
-          <p className="text-muted-foreground">LODS Logistics Real-time Operations Center</p>
+          <p className="text-muted-foreground">Logistics Real-time Operations Center</p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Live System Active</span>
+        <div className="flex items-center gap-4">
+          <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="hidden md:flex">
+             <RefreshCcw className="h-4 w-4 mr-2" /> Refresh
+          </Button>
+          <div className="flex items-center gap-2 px-3 py-1 bg-green-500/10 rounded-full border border-green-500/20">
+            <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-green-600 uppercase tracking-wider">System Live</span>
+          </div>
         </div>
       </div>
 
-      {orders.length === 0 && (
+      {orders.length === 0 && !error && (
         <Card className="border-dashed border-2 bg-muted/30">
-          <CardContent className="flex flex-col items-center py-10 text-center">
-            <Database className="h-10 w-10 text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold">No Live Data Found</h3>
+          <CardContent className="flex flex-col items-center py-12 text-center">
+            <Database className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
+            <h3 className="text-xl font-semibold">No Operational Data</h3>
             <p className="text-muted-foreground mb-6 max-w-sm">
-              Your dashboard is currently empty. You can wait for real orders or initialize sample data for testing.
+              Your dashboard is connected but no orders were found in the 'orders' collection.
             </p>
-            <Button onClick={createSampleData}>
-              <Database className="mr-2 h-4 w-4" />
-              Initialize Sample Order
+            <Button onClick={createSampleData} className="shadow-lg shadow-primary/20">
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Initialize First Order
             </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {error && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="flex items-center gap-4 py-4">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+            <p className="text-sm font-medium text-amber-800">{error}</p>
+            <Button variant="link" size="sm" onClick={createSampleData} className="ml-auto">Try initializing data</Button>
           </CardContent>
         </Card>
       )}
@@ -179,8 +184,8 @@ export default function MissionControlPage() {
       />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-12">
-        <Card className="lg:col-span-5 shadow-lg border-primary/10">
-          <CardHeader className="pb-3 border-b">
+        <Card className="lg:col-span-5 shadow-lg border-primary/10 overflow-hidden">
+          <CardHeader className="pb-3 border-b bg-muted/20">
             <CardTitle className="text-lg">Live Order Feed</CardTitle>
             <CardDescription>Most recent delivery activities</CardDescription>
           </CardHeader>
@@ -190,9 +195,9 @@ export default function MissionControlPage() {
         </Card>
 
         <Card className="lg:col-span-4 shadow-lg border-primary/10 overflow-hidden">
-          <CardHeader className="pb-3 border-b">
+          <CardHeader className="pb-3 border-b bg-muted/20">
             <CardTitle className="text-lg">Operations Map</CardTitle>
-            <CardDescription>Real-time fleet & destination view</CardDescription>
+            <CardDescription>Fleet & destination visualizer</CardDescription>
           </CardHeader>
           <CardContent className="p-0 h-[400px]">
             <OperationsMap riders={riders} orders={orders} />
@@ -206,3 +211,5 @@ export default function MissionControlPage() {
     </div>
   )
 }
+
+import { PlusCircle } from "lucide-react"

@@ -32,6 +32,7 @@
       "type": "object",
       "properties": {
         "name": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
         "role": { "type": "string", "enum": ["manager", "rider"] },
         "status": { "type": "string", "enum": ["online", "offline"] },
         "location": {
@@ -43,14 +44,24 @@
         }
       }
     },
-    "Merchant": {
-      "title": "Merchant",
-      "description": "Partner merchants",
+    "Partner": {
+      "title": "Partner",
+      "description": "Partner merchants or delivery companies",
       "type": "object",
       "properties": {
         "name": { "type": "string" },
         "category": { "type": "string" },
         "address": { "type": "string" }
+      }
+    },
+    "Customer": {
+      "title": "Customer",
+      "description": "App customers",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "phone": { "type": "string" }
       }
     }
   },
@@ -66,9 +77,13 @@
       "schema": "User",
       "description": "User profiles and status"
     },
-    "/merchants/{merchantId}": {
-      "schema": "Merchant",
-      "description": "Registered merchants"
+    "/partners/{partnerId}": {
+      "schema": "Partner",
+      "description": "Registered partners (merchants/logistics)"
+    },
+    "/customers/{customerId}": {
+      "schema": "Customer",
+      "description": "Registered customers"
     }
   }
 }

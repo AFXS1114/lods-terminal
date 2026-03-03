@@ -1,3 +1,4 @@
+
 "use client"
 
 import Link from "next/link"
@@ -18,7 +19,7 @@ import { Button } from "@/components/ui/button"
 
 const routes = [
   {
-    label: "Dashboard",
+    label: "Mission Control",
     icon: LayoutDashboard,
     href: "/dashboard",
     color: "text-accent",
@@ -36,9 +37,9 @@ const routes = [
     color: "text-accent",
   },
   {
-    label: "Merchants",
+    label: "Partners",
     icon: Store,
-    href: "/merchants",
+    href: "/partners",
     color: "text-accent",
   },
   {
