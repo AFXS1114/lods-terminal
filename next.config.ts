@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
   experimental: {
     turbo: {
       resolveAlias: {
-        // Fixes Turbopack errors by aliasing Node.js modules to a shim that provides common exports
+        // Using relative paths for Turbopack aliases to avoid "server relative imports" error
         'async_hooks': './src/lib/shim.ts',
         'fs': './src/lib/shim.ts',
         'fs/promises': './src/lib/shim.ts',
@@ -84,14 +84,18 @@ const nextConfig: NextConfig = {
         dgram: false,
       };
       
-      // Additional alias for Webpack to ensure async_hooks and crypto are handled
+      // Absolute path resolution for Webpack aliases
+      const shimPath = path.resolve(process.cwd(), 'src/lib/shim.ts');
       config.resolve.alias = {
         ...config.resolve.alias,
-        'async_hooks': path.resolve(__dirname, 'src/lib/shim.ts'),
-        'crypto': path.resolve(__dirname, 'src/lib/shim.ts'),
-        'dgram': path.resolve(__dirname, 'src/lib/shim.ts'),
-        'fs/promises': path.resolve(__dirname, 'src/lib/shim.ts'),
-        'http2': path.resolve(__dirname, 'src/lib/shim.ts'),
+        'async_hooks': shimPath,
+        'crypto': shimPath,
+        'dgram': shimPath,
+        'fs/promises': shimPath,
+        'http2': shimPath,
+        'path': shimPath,
+        'fs': shimPath,
+        'os': shimPath,
       };
     }
     return config;

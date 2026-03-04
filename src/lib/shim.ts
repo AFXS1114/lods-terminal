@@ -45,6 +45,26 @@ export const parse = (p: string) => ({
   ext: extname(p),
   name: basename(p).replace(/\.[^/.]+$/, "")
 });
+export const format = (p: any) => (p.dir || "") + "/" + (p.base || "");
+export const sep = '/';
+export const delimiter = ':';
+
+// Support for path.posix.join and path.win32.join
+const pathMock = {
+  resolve,
+  join,
+  relative,
+  dirname,
+  basename,
+  extname,
+  parse,
+  format,
+  sep,
+  delimiter,
+};
+
+export const posix = pathMock;
+export const win32 = pathMock;
 
 // FS mocks
 export const readFileSync = () => Buffer.from("");
@@ -55,9 +75,23 @@ export const promises = {
   readdir: async () => [],
 };
 
+// Export fs/promises methods at top level for direct aliasing
+export const readFile = promises.readFile;
+export const writeFile = promises.writeFile;
+export const mkdir = promises.mkdir;
+export const readdir = promises.readdir;
+
 // OS mocks
 export const platform = () => "browser";
 export const arch = () => "javascript";
+
+// Dgram mocks
+export const createSocket = () => ({
+  on: () => {},
+  send: () => {},
+  close: () => {},
+  bind: () => {},
+});
 
 // Default export containing all mocks for CJS compatibility
 const shim = {
@@ -73,10 +107,20 @@ const shim = {
   basename,
   extname,
   parse,
+  format,
+  sep,
+  delimiter,
+  posix,
+  win32,
   readFileSync,
   promises,
+  readFile,
+  writeFile,
+  mkdir,
+  readdir,
   platform,
-  arch
+  arch,
+  createSocket,
 };
 
 export default shim;
