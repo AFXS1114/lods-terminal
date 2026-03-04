@@ -52,6 +52,7 @@ const nextConfig: NextConfig = {
         'http': './src/lib/shim.ts',
         'https': './src/lib/shim.ts',
         'zlib': './src/lib/shim.ts',
+        'dgram': './src/lib/shim.ts',
       },
     },
   },
@@ -77,6 +78,7 @@ const nextConfig: NextConfig = {
         https: false,
         zlib: false,
         vm: false,
+        dgram: false,
       };
       
       // Additional alias for Webpack to ensure async_hooks and crypto are handled
@@ -84,6 +86,7 @@ const nextConfig: NextConfig = {
         ...config.resolve.alias,
         'async_hooks': path.resolve(__dirname, 'src/lib/shim.ts'),
         'crypto': path.resolve(__dirname, 'src/lib/shim.ts'),
+        'dgram': path.resolve(__dirname, 'src/lib/shim.ts'),
       };
     }
     return config;
