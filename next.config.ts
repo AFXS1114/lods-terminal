@@ -55,6 +55,10 @@ const nextConfig: NextConfig = {
         'zlib': './src/lib/shim.ts',
         'dgram': './src/lib/shim.ts',
         'http2': './src/lib/shim.ts',
+        'express': './src/lib/shim.ts',
+        'get-port': './src/lib/shim.ts',
+        'util': './src/lib/shim.ts',
+        'buffer': './src/lib/shim.ts',
       },
     },
   },
@@ -96,6 +100,8 @@ const nextConfig: NextConfig = {
         'path': shimPath,
         'fs': shimPath,
         'os': shimPath,
+        'express': shimPath,
+        'get-port': shimPath,
       };
     }
     return config;

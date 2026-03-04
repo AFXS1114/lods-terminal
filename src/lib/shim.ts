@@ -93,6 +93,23 @@ export const createSocket = () => ({
   bind: () => {},
 });
 
+// Express mock
+const expressMock = () => ({
+  use: () => {},
+  get: () => {},
+  post: () => {},
+  listen: () => {},
+  set: () => {},
+  engine: () => {},
+});
+expressMock.static = () => () => {};
+expressMock.json = () => () => {};
+expressMock.urlencoded = () => () => {};
+export const express = expressMock;
+
+// Utility mocks
+export const getPort = async () => 0;
+
 // Default export containing all mocks for CJS compatibility
 const shim = {
   randomBytes,
@@ -121,6 +138,8 @@ const shim = {
   platform,
   arch,
   createSocket,
+  express,
+  getPort,
 };
 
 export default shim;
