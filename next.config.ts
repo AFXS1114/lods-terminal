@@ -40,6 +40,7 @@ const nextConfig: NextConfig = {
         // Fixes Turbopack errors by aliasing Node.js modules to a shim that provides common exports
         'async_hooks': './src/lib/shim.ts',
         'fs': './src/lib/shim.ts',
+        'fs/promises': './src/lib/shim.ts',
         'path': './src/lib/shim.ts',
         'os': './src/lib/shim.ts',
         'crypto': './src/lib/shim.ts',
@@ -63,6 +64,7 @@ const nextConfig: NextConfig = {
         ...config.resolve.fallback,
         async_hooks: false,
         fs: false,
+        'fs/promises': false,
         path: false,
         os: false,
         net: false,
@@ -87,6 +89,7 @@ const nextConfig: NextConfig = {
         'async_hooks': path.resolve(__dirname, 'src/lib/shim.ts'),
         'crypto': path.resolve(__dirname, 'src/lib/shim.ts'),
         'dgram': path.resolve(__dirname, 'src/lib/shim.ts'),
+        'fs/promises': path.resolve(__dirname, 'src/lib/shim.ts'),
       };
     }
     return config;
