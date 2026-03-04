@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
   experimental: {
     turbo: {
       resolveAlias: {
-        // Fixes Turbopack errors by aliasing Node.js modules to an empty shim
+        // Fixes Turbopack errors by aliasing Node.js modules to a shim that provides common exports
         'async_hooks': './src/lib/shim.ts',
         'fs': './src/lib/shim.ts',
         'path': './src/lib/shim.ts',
@@ -79,10 +79,11 @@ const nextConfig: NextConfig = {
         vm: false,
       };
       
-      // Additional alias for Webpack to ensure async_hooks is ignored
+      // Additional alias for Webpack to ensure async_hooks and crypto are handled
       config.resolve.alias = {
         ...config.resolve.alias,
         'async_hooks': path.resolve(__dirname, 'src/lib/shim.ts'),
+        'crypto': path.resolve(__dirname, 'src/lib/shim.ts'),
       };
     }
     return config;
