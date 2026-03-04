@@ -54,6 +54,7 @@ const nextConfig: NextConfig = {
         'https': './src/lib/shim.ts',
         'zlib': './src/lib/shim.ts',
         'dgram': './src/lib/shim.ts',
+        'http2': './src/lib/shim.ts',
       },
     },
   },
@@ -90,6 +91,7 @@ const nextConfig: NextConfig = {
         'crypto': path.resolve(__dirname, 'src/lib/shim.ts'),
         'dgram': path.resolve(__dirname, 'src/lib/shim.ts'),
         'fs/promises': path.resolve(__dirname, 'src/lib/shim.ts'),
+        'http2': path.resolve(__dirname, 'src/lib/shim.ts'),
       };
     }
     return config;
