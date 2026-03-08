@@ -102,6 +102,13 @@ export const release = () => "";
 export const type = () => "";
 export const uptime = () => 0;
 export const hostname = () => "localhost";
+export const userInfo = () => ({
+  uid: -1,
+  gid: -1,
+  username: "browser",
+  homedir: "/",
+  shell: null,
+});
 
 // Dgram mocks
 export const createSocket = () => ({
@@ -235,6 +242,7 @@ const shim = {
   type,
   uptime,
   hostname,
+  userInfo,
   createSocket,
   express,
   getPort,
