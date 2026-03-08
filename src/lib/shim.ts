@@ -110,6 +110,11 @@ export const express = expressMock;
 // Utility mocks
 export const getPort = async () => 0;
 
+// Util exports
+export const inspect = (obj: any) => JSON.stringify(obj);
+export const TextEncoder = typeof globalThis !== 'undefined' ? globalThis.TextEncoder : class {};
+export const TextDecoder = typeof globalThis !== 'undefined' ? globalThis.TextDecoder : class {};
+
 // Default export containing all mocks for CJS compatibility
 const shim = {
   randomBytes,
@@ -140,6 +145,9 @@ const shim = {
   createSocket,
   express,
   getPort,
+  inspect,
+  TextEncoder,
+  TextDecoder,
 };
 
 export default shim;
