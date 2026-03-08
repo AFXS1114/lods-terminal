@@ -32,6 +32,8 @@ export const join = (...args: string[]) => args.join('/');
 export const relative = (from: string, to: string) => to;
 export const dirname = (p: string) => p.split('/').slice(0, -1).join('/') || '.';
 export const basename = (p: string) => p.split('/').pop() || '';
+export const isAbsolute = (p: string) => p.startsWith('/');
+export const normalize = (p: string) => p;
 export const extname = (p: string) => {
   const base = basename(p);
   const index = base.lastIndexOf('.');
@@ -55,6 +57,8 @@ const pathMock = {
   relative,
   dirname,
   basename,
+  isAbsolute,
+  normalize,
   extname,
   parse,
   format,
@@ -179,6 +183,8 @@ const shim = {
   relative,
   dirname,
   basename,
+  isAbsolute,
+  normalize,
   extname,
   parse,
   format,
