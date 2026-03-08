@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -26,19 +25,15 @@ export default function LoginPage() {
     setIsLoading(true)
 
     try {
-      // Administrative Bypass for testing
-      if (email === "admin@lods.com" && password === "password") {
-        router.push("/dashboard")
-        return
-      }
-
-      // Live Firebase Authentication
+      // Live Firebase Authentication using direct SDK
       await signInWithEmailAndPassword(auth, email, password)
-      router.push("/dashboard")
+      router.push("/dashboard/mission-control")
     } catch (error: any) {
       toast({
-        title: "Login Failed",
-        description: error.message || "Invalid credentials. Please try again.",
+        title: "Access Denied",
+        description: error.code === 'auth/invalid-api-key' 
+          ? "Terminal Configuration Error: Invalid API Key. Please check environment variables."
+          : error.message || "Invalid credentials.",
         variant: "destructive",
       })
     } finally {
@@ -73,7 +68,7 @@ export default function LoginPage() {
               Manager Access
             </CardTitle>
             <CardDescription>
-              Enter your credentials to access the Mission Control dashboard
+              Enter credentials to access Mission Control
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -83,7 +78,7 @@ export default function LoginPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="name@lods.com" 
+                  placeholder="admin@lods.com" 
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -91,10 +86,7 @@ export default function LoginPage() {
                 />
               </div>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password">Password</Label>
-                  <Button variant="link" className="px-0 font-normal text-xs text-primary" type="button">Forgot password?</Button>
-                </div>
+                <Label htmlFor="password">Password</Label>
                 <Input 
                   id="password" 
                   type="password" 
@@ -106,21 +98,13 @@ export default function LoginPage() {
               </div>
               <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={isLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
-                Enter Mission Control
+                Initialize Link
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col space-y-4">
-            <div className="relative w-full">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t"></span>
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">Secure Portal</span>
-              </div>
-            </div>
-            <p className="px-8 text-center text-xs text-muted-foreground">
-              Unauthorized access to this terminal is strictly prohibited.
+          <CardFooter>
+            <p className="w-full text-center text-xs text-muted-foreground">
+              Secure Direct-Client Connection Established
             </p>
           </CardFooter>
         </Card>

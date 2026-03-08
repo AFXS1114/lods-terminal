@@ -1,4 +1,3 @@
-
 "use client"
 
 import Link from "next/link"
@@ -8,11 +7,10 @@ import {
   LayoutDashboard, 
   Package, 
   Store, 
-  Users, 
+  Truck,
   Settings, 
   LogOut,
-  Map,
-  Truck
+  Map
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -22,7 +20,7 @@ const routes = [
   {
     label: "Mission Control",
     icon: LayoutDashboard,
-    href: "/dashboard",
+    href: "/dashboard/mission-control",
     color: "text-accent",
   },
   {
@@ -93,7 +91,7 @@ export function Sidebar() {
         </div>
       </div>
       <div className="px-3 mt-auto border-t border-sidebar-border pt-4">
-        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors">
+        <Button variant="ghost" className="w-full justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors" onClick={() => window.location.href = '/login'}>
           <LogOut className="h-5 w-5 mr-3" />
           Logout
         </Button>
