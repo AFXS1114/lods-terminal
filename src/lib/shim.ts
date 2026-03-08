@@ -121,6 +121,25 @@ export const getPort = async () => 0;
 export const inspect = (obj: any) => JSON.stringify(obj);
 export const TextEncoder = typeof globalThis !== 'undefined' ? globalThis.TextEncoder : class {};
 export const TextDecoder = typeof globalThis !== 'undefined' ? globalThis.TextDecoder : class {};
+export const promisify = (fn: any) => {
+  return (...args: any[]) => {
+    return new Promise((resolve, reject) => {
+      try {
+        fn(...args, (err: any, result: any) => {
+          if (err) reject(err);
+          else resolve(result);
+        });
+      } catch (e) {
+        // Fallback for non-callback based mocks
+        resolve(undefined);
+      }
+    });
+  };
+};
+export const types = {
+  isAnyArrayBuffer: () => false,
+  isUint8Array: (v: any) => v instanceof Uint8Array,
+};
 
 // Net/TLS/HTTP/HTTPS mocks
 export class Agent {}
@@ -163,7 +182,7 @@ export const inflateSync = (v: any) => v;
 export const deflateSync = (v: any) => v;
 
 // Child Process mocks
-export const exec = () => {};
+export const exec = (cmd: string, cb: any) => { if (cb) cb(null, { stdout: '', stderr: '' }); };
 export const execSync = () => Buffer.from("");
 export const spawn = () => ({ on: () => {}, stdout: new Readable(), stderr: new Readable() });
 
@@ -210,6 +229,8 @@ const shim = {
   inspect,
   TextEncoder,
   TextDecoder,
+  promisify,
+  types,
   Agent,
   createServer,
   connect,
