@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useEffect } from "react"
@@ -22,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
-import { aiBookingAssistant } from "@/ai/flows/ai-booking-assistant-flow"
+import { aiBookingAssistant } from "@/lib/gemini"
 
 const bookingSchema = z.object({
   pickupAddress: z.string().min(5, "Address is too short"),
