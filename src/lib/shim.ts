@@ -1,4 +1,3 @@
-
 // This is a dummy shim file used to bypass Node.js module requirements
 // during the client-side bundling process for static exports.
 
@@ -84,6 +83,9 @@ export const readdir = promises.readdir;
 // OS mocks
 export const platform = () => "browser";
 export const arch = () => "javascript";
+export const release = () => "";
+export const type = () => "";
+export const uptime = () => 0;
 
 // Dgram mocks
 export const createSocket = () => ({
@@ -155,6 +157,15 @@ export const createInflate = () => new PassThrough();
 export const inflateSync = (v: any) => v;
 export const deflateSync = (v: any) => v;
 
+// Child Process mocks
+export const exec = () => {};
+export const execSync = () => Buffer.from("");
+export const spawn = () => ({ on: () => {}, stdout: new Readable(), stderr: new Readable() });
+
+// DNS mocks
+export const lookup = () => {};
+export const resolve4 = () => {};
+
 // Default export containing all mocks for CJS compatibility
 const shim = {
   randomBytes,
@@ -182,6 +193,9 @@ const shim = {
   readdir,
   platform,
   arch,
+  release,
+  type,
+  uptime,
   createSocket,
   express,
   getPort,
@@ -204,6 +218,11 @@ const shim = {
   createInflate,
   inflateSync,
   deflateSync,
+  exec,
+  execSync,
+  spawn,
+  lookup,
+  resolve4,
 };
 
 export default shim;

@@ -1,4 +1,3 @@
-
 import type {NextConfig} from 'next';
 import path from 'path';
 
@@ -110,6 +109,8 @@ const nextConfig: NextConfig = {
         'net': shimPath,
         'tls': shimPath,
         'util': shimPath,
+        'child_process': shimPath,
+        'dns': shimPath,
       };
     }
     return config;
