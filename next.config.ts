@@ -64,6 +64,9 @@ const nextConfig: NextConfig = {
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
+      // Absolute path resolution for Webpack aliases
+      const shimPath = path.resolve(process.cwd(), 'src/lib/shim.ts');
+      
       // Fixes Webpack errors for npm packages that depend on Node.js modules for client-side builds
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -88,8 +91,6 @@ const nextConfig: NextConfig = {
         dgram: false,
       };
       
-      // Absolute path resolution for Webpack aliases
-      const shimPath = path.resolve(process.cwd(), 'src/lib/shim.ts');
       config.resolve.alias = {
         ...config.resolve.alias,
         'async_hooks': shimPath,
@@ -102,6 +103,13 @@ const nextConfig: NextConfig = {
         'os': shimPath,
         'express': shimPath,
         'get-port': shimPath,
+        'http': shimPath,
+        'https': shimPath,
+        'stream': shimPath,
+        'zlib': shimPath,
+        'net': shimPath,
+        'tls': shimPath,
+        'util': shimPath,
       };
     }
     return config;

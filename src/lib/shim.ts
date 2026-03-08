@@ -115,6 +115,46 @@ export const inspect = (obj: any) => JSON.stringify(obj);
 export const TextEncoder = typeof globalThis !== 'undefined' ? globalThis.TextEncoder : class {};
 export const TextDecoder = typeof globalThis !== 'undefined' ? globalThis.TextDecoder : class {};
 
+// Net/TLS/HTTP/HTTPS mocks
+export class Agent {}
+export const createServer = () => ({ listen: () => {}, on: () => {} });
+export const connect = () => ({ on: () => {}, write: () => {}, end: () => {} });
+export const request = () => ({ on: () => {}, write: () => {}, end: () => {} });
+export const get = () => ({ on: () => {} });
+
+// Stream mocks
+export class Readable {
+  on() { return this; }
+  once() { return this; }
+  emit() { return true; }
+  pipe() { return this; }
+  unpipe() { return this; }
+  resume() { return this; }
+  pause() { return this; }
+  setEncoding() { return this; }
+  read() { return null; }
+  destroy() { return this; }
+}
+export class Writable {
+  on() { return this; }
+  once() { return this; }
+  emit() { return true; }
+  write() { return true; }
+  end() { return this; }
+  destroy() { return this; }
+}
+export class Duplex extends Readable {}
+export class Transform extends Duplex {}
+export class PassThrough extends Transform {}
+
+// Zlib mocks
+export const createGzip = () => new PassThrough();
+export const createGunzip = () => new PassThrough();
+export const createDeflate = () => new PassThrough();
+export const createInflate = () => new PassThrough();
+export const inflateSync = (v: any) => v;
+export const deflateSync = (v: any) => v;
+
 // Default export containing all mocks for CJS compatibility
 const shim = {
   randomBytes,
@@ -148,6 +188,22 @@ const shim = {
   inspect,
   TextEncoder,
   TextDecoder,
+  Agent,
+  createServer,
+  connect,
+  request,
+  get,
+  Readable,
+  Writable,
+  Duplex,
+  Transform,
+  PassThrough,
+  createGzip,
+  createGunzip,
+  createDeflate,
+  createInflate,
+  inflateSync,
+  deflateSync,
 };
 
 export default shim;
