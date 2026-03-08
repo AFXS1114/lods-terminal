@@ -86,6 +86,7 @@ export const arch = () => "javascript";
 export const release = () => "";
 export const type = () => "";
 export const uptime = () => 0;
+export const hostname = () => "localhost";
 
 // Dgram mocks
 export const createSocket = () => ({
@@ -196,6 +197,7 @@ const shim = {
   release,
   type,
   uptime,
+  hostname,
   createSocket,
   express,
   getPort,
