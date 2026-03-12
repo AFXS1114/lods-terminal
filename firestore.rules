@@ -1,0 +1,135 @@
+/**
+ * FIRESTORE SECURITY RULES
+ * 
+ * CORE PHILOSOPHY:
+ * This ruleset implements a multi-party delivery ecosystem (LODS) with a focus on Authorization Independence.
+ * Access is governed by specific roles (Admin, Merchant, Rider, Customer) and direct document ownership.
+ * 
+ * DATA STRUCTURE:
+ * - /roles_admin/{adminId}: Admin privilege registration.
+ * - /merchants/{merchantId}: Merchant profiles, owned by the user matching the document ID.
+ * - /riders/{riderId}: Rider profiles and location data, owned by the user matching the document ID.
+ * - /deliveryRates/{rateId}: Pricing configurations (Public read, Admin-only write).
+ * - /orders/{orderId}: Core transaction entity shared between customers, merchants, and riders.
+ * 
+ * KEY SECURITY DECISIONS:
+ * 1. Denormalization: Order documents contain 'customerId', 'merchantId', and 'riderId'. This allows
+ *    instant authorization for all three parties without performing costly cross-document lookups.
+ * 2. Identity Consistency: For Merchants and Riders, the Firestore Document ID MUST match the Firebase
+ *    Auth UID. This establishes a strict 1:1 relationship for profile management.
+ * 3. Role-Based Access: Administrative access is granted by the existence of a document in the 
+ *    'roles_admin' collection, providing a centralized and performant way to manage system-wide overrides.
+ * 4. Query Security: Listing orders is restricted to queries that explicitly filter by the user's
+ *    specific role (e.g., where 'merchantId' == auth.uid), preventing data leakage.
+ * 5. Prototyping Flexibility: While authorization is strictly enforced, schema validation is limited
+ *    to identity and relational integrity fields to allow for rapid frontend iteration.
+ * 
+ * Note: The reported 'auth/invalid-api-key' error is a client-side configuration issue in the 
+ * firebaseConfig object and is not related to these security rules.
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+
+    /** @description Checks if the user is authenticated. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the user has a document in the roles_admin collection. */
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /** @description Checks if the provided UID matches the authenticated user's UID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Checks if the user is one of the designated participants in an order document. */
+    function isActorInOrder(orderData) {
+      return isSignedIn() && (
+        request.auth.uid == orderData.customerId || 
+        request.auth.uid == orderData.merchantId || 
+        request.auth.uid == orderData.riderId
+      );
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Administrative user registry. Presence of a document grants global admin rights.
+     * @path /roles_admin/{adminId}
+     * @allow (get) Any authenticated user to verify admin status. (write) Only existing admins.
+     * @deny (create) Non-admin users attempting to grant themselves admin status.
+     * @principle Role-Based Access Control (RBAC) via existence check.
+     */
+    match /roles_admin/{adminId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Merchant profiles. Managed by the merchant or system admins.
+     * @path /merchants/{merchantId}
+     * @allow (get) Any authenticated user (to browse merchants). (create) User matching path ID.
+     * @deny (update) Any user who is not the owner or an admin.
+     * @principle Path-based ownership and relational integrity.
+     */
+    match /merchants/{merchantId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isOwner(merchantId) && request.resource.data.id == merchantId;
+      allow update: if (resource != null && isOwner(merchantId)) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Rider profiles and location. Managed by the rider or system admins.
+     * @path /riders/{riderId}
+     * @allow (get) Authorized actors (to see their assigned rider). (update) Owner rider.
+     * @deny (list) Public listing of all riders and their locations.
+     * @principle Restricted visibility for safety and privacy.
+     */
+    match /riders/{riderId} {
+      allow get: if isSignedIn();
+      allow list: if isAdmin();
+      allow create: if isOwner(riderId) && request.resource.data.id == riderId;
+      allow update: if (resource != null && isOwner(riderId)) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Pricing and rate configurations.
+     * @path /deliveryRates/{deliveryRateId}
+     * @allow (read) All authenticated users to calculate delivery costs. (write) Admin only.
+     * @deny (write) Any merchant or rider attempting to modify system rates.
+     * @principle Public read with restricted administrative writes.
+     */
+    match /deliveryRates/{deliveryRateId} {
+      allow get, list: if isSignedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    /**
+     * @description Delivery booking records.
+     * @path /orders/{orderId}
+     * @allow (get) The customer, merchant, or rider associated with the order.
+     * @allow (list) Filtered queries matching the user's role ID.
+     * @allow (create) Authenticated customers setting themselves as 'customerId'.
+     * @deny (update) Users not part of the order participants list.
+     * @principle Shared Access (Closed Collaborators) using denormalized identity fields.
+     */
+    match /orders/{orderId} {
+      allow get: if isActorInOrder(resource.data) || isAdmin();
+      allow list: if isAdmin() || (isSignedIn() && (request.query.customerId == request.auth.uid || request.query.merchantId == request.auth.uid || request.query.riderId == request.auth.uid));
+      allow create: if isSignedIn() && (request.resource.data.customerId == request.auth.uid || isAdmin());
+      allow update: if resource != null && (isActorInOrder(resource.data) || isAdmin());
+      allow delete: if isAdmin();
+    }
+  }
+}

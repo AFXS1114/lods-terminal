@@ -1,94 +1,422 @@
 {
   "entities": {
     "Order": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Order",
-      "description": "A delivery order record",
       "type": "object",
+      "description": "Represents a delivery booking within the LODS platform, tracking its status and details from creation to completion.",
       "properties": {
-        "bookingNo": { "type": "string" },
-        "customerName": { "type": "string" },
-        "merchant": { "type": "string" },
-        "merchantId": { "type": "string" },
-        "status": { 
-          "type": "string", 
-          "enum": ["pending", "in-transit", "picked-up", "delivered", "cancelled"] 
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Order entity."
         },
-        "finalTotal": { "type": "number" },
-        "createdAt": { "type": "string", "format": "date-time" },
-        "deliveryLocation": {
-          "type": "object",
-          "properties": {
-            "lat": { "type": "number" },
-            "lng": { "type": "number" },
-            "address": { "type": "string" }
+        "customerId": {
+          "type": "string",
+          "description": "Reference to the customer who placed this order. (Relationship: Customer 1:N Order)"
+        },
+        "merchantId": {
+          "type": "string",
+          "description": "Reference to the merchant from whom this order originated. (Relationship: Merchant 1:N Order)"
+        },
+        "riderId": {
+          "type": "string",
+          "description": "Reference to the rider assigned to this order. Nullable if no rider is assigned yet. (Relationship: Rider 1:N Order)"
+        },
+        "pickupAddress": {
+          "type": "string",
+          "description": "Full street address for item pickup."
+        },
+        "pickupLatitude": {
+          "type": "number",
+          "description": "Latitude coordinate for item pickup location."
+        },
+        "pickupLongitude": {
+          "type": "number",
+          "description": "Longitude coordinate for item pickup location."
+        },
+        "dropoffAddress": {
+          "type": "string",
+          "description": "Full street address for item dropoff."
+        },
+        "dropoffLatitude": {
+          "type": "number",
+          "description": "Latitude coordinate for item dropoff location."
+        },
+        "dropoffLongitude": {
+          "type": "number",
+          "description": "Longitude coordinate for item dropoff location."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current status of the order (e.g., 'pending', 'active', 'completed', 'cancelled')."
+        },
+        "bookingTime": {
+          "type": "string",
+          "description": "Timestamp when the order was initially booked.",
+          "format": "date-time"
+        },
+        "pickupTime": {
+          "type": "string",
+          "description": "Timestamp when the order was picked up by the rider.",
+          "format": "date-time"
+        },
+        "deliveryTime": {
+          "type": "string",
+          "description": "Timestamp when the order was successfully delivered.",
+          "format": "date-time"
+        },
+        "estimatedDeliveryTime": {
+          "type": "string",
+          "description": "Estimated timestamp for order delivery.",
+          "format": "date-time"
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total monetary amount for the delivery, including fees."
+        },
+        "deliveryRateId": {
+          "type": "string",
+          "description": "Reference to the delivery rate applied to this order. (Relationship: DeliveryRate 1:N Order)"
+        },
+        "items": {
+          "type": "array",
+          "description": "A list of strings describing the items included in the delivery.",
+          "items": {
+            "type": "string"
           }
+        },
+        "notes": {
+          "type": "string",
+          "description": "Any special instructions or additional notes for the delivery."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the order record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the order record was last updated.",
+          "format": "date-time"
         }
       },
-      "required": ["bookingNo", "customerName", "status", "finalTotal"]
-    },
-    "User": {
-      "title": "User",
-      "description": "App users including managers and riders",
-      "type": "object",
-      "properties": {
-        "name": { "type": "string" },
-        "email": { "type": "string", "format": "email" },
-        "role": { "type": "string", "enum": ["manager", "rider"] },
-        "status": { "type": "string", "enum": ["online", "offline"] },
-        "location": {
-          "type": "object",
-          "properties": {
-            "lat": { "type": "number" },
-            "lng": { "type": "number" }
-          }
-        }
-      }
+      "required": [
+        "id",
+        "customerId",
+        "merchantId",
+        "pickupAddress",
+        "pickupLatitude",
+        "pickupLongitude",
+        "dropoffAddress",
+        "dropoffLatitude",
+        "dropoffLongitude",
+        "status",
+        "bookingTime",
+        "totalAmount",
+        "deliveryRateId",
+        "createdAt"
+      ]
     },
     "Merchant": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Merchant",
-      "description": "Partner merchants or delivery companies",
       "type": "object",
+      "description": "Represents a business or vendor providing services through the LODS platform.",
       "properties": {
-        "name": { "type": "string" },
-        "category": { "type": "string" },
-        "address": { "type": "string" },
-        "contactPerson": { "type": "string" },
-        "phone": { "type": "string" },
-        "status": { "type": "string", "enum": ["active", "inactive"] },
-        "createdAt": { "type": "string", "format": "date-time" }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Merchant entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "Official name of the merchant."
+        },
+        "email": {
+          "type": "string",
+          "description": "Contact email address for the merchant.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact phone number for the merchant."
+        },
+        "address": {
+          "type": "string",
+          "description": "Physical address of the merchant's primary location."
+        },
+        "latitude": {
+          "type": "number",
+          "description": "Latitude coordinate of the merchant's primary location."
+        },
+        "longitude": {
+          "type": "number",
+          "description": "Longitude coordinate of the merchant's primary location."
+        },
+        "status": {
+          "type": "string",
+          "description": "Current operational status of the merchant (e.g., 'active', 'inactive', 'suspended')."
+        },
+        "registrationDate": {
+          "type": "string",
+          "description": "Timestamp when the merchant registered on the platform.",
+          "format": "date-time"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the merchant record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the merchant record was last updated.",
+          "format": "date-time"
+        }
       },
-      "required": ["name", "category", "status"]
+      "required": [
+        "id",
+        "name",
+        "email",
+        "phone",
+        "address",
+        "latitude",
+        "longitude",
+        "status",
+        "registrationDate",
+        "createdAt"
+      ]
     },
-    "Customer": {
-      "title": "Customer",
-      "description": "App customers",
+    "Rider": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Rider",
       "type": "object",
+      "description": "Represents a delivery rider associated with the LODS platform.",
       "properties": {
-        "name": { "type": "string" },
-        "email": { "type": "string" },
-        "phone": { "type": "string" }
-      }
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Rider entity."
+        },
+        "firstName": {
+          "type": "string",
+          "description": "The rider's first name."
+        },
+        "lastName": {
+          "type": "string",
+          "description": "The rider's last name."
+        },
+        "email": {
+          "type": "string",
+          "description": "Contact email address for the rider.",
+          "format": "email"
+        },
+        "phone": {
+          "type": "string",
+          "description": "Contact phone number for the rider."
+        },
+        "currentLatitude": {
+          "type": "number",
+          "description": "Rider's last known latitude coordinate."
+        },
+        "currentLongitude": {
+          "type": "number",
+          "description": "Rider's last known longitude coordinate."
+        },
+        "locationUpdateTime": {
+          "type": "string",
+          "description": "Timestamp of the last known location update for the rider.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "Current availability status of the rider (e.g., 'available', 'on-delivery', 'offline')."
+        },
+        "vehicleType": {
+          "type": "string",
+          "description": "Type of vehicle used by the rider (e.g., 'motorcycle', 'car', 'bicycle')."
+        },
+        "licensePlate": {
+          "type": "string",
+          "description": "Vehicle license plate number of the rider."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the rider record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the rider record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "firstName",
+        "lastName",
+        "email",
+        "phone",
+        "currentLatitude",
+        "currentLongitude",
+        "locationUpdateTime",
+        "status",
+        "vehicleType",
+        "createdAt"
+      ]
+    },
+    "DeliveryRate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "DeliveryRate",
+      "type": "object",
+      "description": "Defines the pricing structure and conditions for different delivery services within the LODS platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the DeliveryRate entity."
+        },
+        "rateName": {
+          "type": "string",
+          "description": "A descriptive name for the delivery rate (e.g., 'Standard City', 'Express Rural')."
+        },
+        "baseFee": {
+          "type": "number",
+          "description": "The minimum charge applied to a delivery using this rate."
+        },
+        "perKmRate": {
+          "type": "number",
+          "description": "Additional charge per kilometer for distances exceeding minimum distance."
+        },
+        "minimumDistanceKm": {
+          "type": "number",
+          "description": "The minimum distance (in kilometers) for which the base fee applies."
+        },
+        "maxDistanceKm": {
+          "type": "number",
+          "description": "The maximum distance (in kilometers) covered by this delivery rate."
+        },
+        "weightLimitKg": {
+          "type": "number",
+          "description": "Maximum allowed weight (in kilograms) for deliveries using this rate."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Boolean indicating whether this delivery rate is currently active and usable."
+        },
+        "applicableRegion": {
+          "type": "string",
+          "description": "Geographical region or zone where this delivery rate is valid."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp when the delivery rate record was created.",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp when the delivery rate record was last updated.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "rateName",
+        "baseFee",
+        "perKmRate",
+        "minimumDistanceKm",
+        "maxDistanceKm",
+        "weightLimitKg",
+        "isActive",
+        "createdAt"
+      ]
     }
   },
   "auth": {
-    "providers": ["password"]
+    "providers": [
+      "password",
+      "anonymous"
+    ]
   },
   "firestore": {
-    "/orders/{orderId}": {
-      "schema": "Order",
-      "description": "Collection of all delivery orders"
-    },
-    "/users/{userId}": {
-      "schema": "User",
-      "description": "User profiles and status"
-    },
-    "/merchants/{merchantId}": {
-      "schema": "Merchant",
-      "description": "Registered partner merchants"
-    },
-    "/customers/{customerId}": {
-      "schema": "Customer",
-      "description": "Registered customers"
-    }
+    "structure": [
+      {
+        "path": "/roles_admin/{adminId}",
+        "definition": {
+          "entityName": "roles_admin",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores documents representing administrative users. The existence of a document at `/roles_admin/{uid}` grants administrative privileges to the user with that UID. Designed for DBAC and Authorization Independence (existence check).",
+          "params": [
+            {
+              "name": "adminId",
+              "description": "The Firebase User ID (UID) of the administrative user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/merchants/{merchantId}",
+        "definition": {
+          "entityName": "Merchant",
+          "schema": {
+            "$ref": "#/backend/entities/Merchant"
+          },
+          "description": "Stores detailed profiles for merchants. The `{merchantId}` path parameter should correspond to the Firebase UID of the merchant user for direct, path-based ownership and simplified security rules. Includes denormalized 'id' field matching the path parameter for authorization independence.",
+          "params": [
+            {
+              "name": "merchantId",
+              "description": "The unique identifier for the Merchant, ideally matching the Firebase UID of the user managing this merchant account."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/riders/{riderId}",
+        "definition": {
+          "entityName": "Rider",
+          "schema": {
+            "$ref": "#/backend/entities/Rider"
+          },
+          "description": "Stores detailed profiles and real-time location data for delivery riders. The `{riderId}` path parameter should correspond to the Firebase UID of the rider user for direct, path-based ownership and simplified security rules. Includes denormalized 'id' field matching the path parameter for authorization independence.",
+          "params": [
+            {
+              "name": "riderId",
+              "description": "The unique identifier for the Rider, ideally matching the Firebase UID of the rider user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/deliveryRates/{deliveryRateId}",
+        "definition": {
+          "entityName": "DeliveryRate",
+          "schema": {
+            "$ref": "#/backend/entities/DeliveryRate"
+          },
+          "description": "Stores the various pricing structures and conditions for delivery services. Accessible for reading by merchants and customers, writable by administrators.",
+          "params": [
+            {
+              "name": "deliveryRateId",
+              "description": "The unique identifier for a specific delivery rate."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/orders/{orderId}",
+        "definition": {
+          "entityName": "Order",
+          "schema": {
+            "$ref": "#/backend/entities/Order"
+          },
+          "description": "Stores all delivery booking information. Includes denormalized 'customerId', 'merchantId', and 'riderId' for Authorization Independence, allowing direct checks against `request.auth.uid` in security rules without `get()` calls. The 'status' field facilitates efficient querying for live dashboards.",
+          "params": [
+            {
+              "name": "orderId",
+              "description": "The unique identifier for a delivery order."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore data structure prioritizes security, scalability, and debuggability by adhering to the core design principles of Authorization Independence, Structural Segregation, and consistent Access Modeling. The design explicitly addresses the need for robust security rules and efficient query patterns (QAPs).\n\n**Authorization Independence via Denormalization:**\nFor the crucial `/orders/{orderId}` collection, authorization fields (`customerId`, `merchantId`, `riderId`) are denormalized directly into each Order document. This eliminates the need for `get()` calls in Firestore Security Rules to check a parent document or related entity for ownership or membership. For example, a merchant's access to an order is determined by checking `request.auth.uid == resource.data.merchantId` directly within the order document, making rules atomic, simpler, and less prone to transaction/batching issues. Similarly, for `/merchants/{merchantId}` and `/riders/{riderId}`, the document ID (`{merchantId}` or `{riderId}`) is intended to match the `uid` of the authenticating user. This establishes direct, path-based ownership for profile management without requiring external lookups. Global roles, such as 'admin', are managed via the `/roles_admin/{adminId}` collection, where the mere *existence* of a document with the user's `uid` grants the role, removing any dependency on document content or `get()` calls.\n\n**QAPs (Rules are not Filters):**\n1.  **Structural Segregation:** Collections like `/merchants`, `/riders`, `/deliveryRates`, `/orders`, and `/roles_admin` are distinct, each representing a homogeneous security posture. This means all documents within a given collection generally share the same access requirements, simplifying security rules. For example, `/deliveryRates` allows public reads but restricted writes (admin-only), while `/merchants` allows owner-specific and admin access.\n2.  **Authorization Fields for Querying:** By embedding `customerId`, `merchantId`, and `riderId` within the `/orders/{orderId}` documents, secure `list` operations are enabled. Security rules can enforce that `list` queries must include filters matching the authenticated user's `uid` against these fields (e.g., `allow list: if request.auth.uid == request.query.merchantId`). This prevents unauthorized broad `list` access while permitting legitimate, filtered queries. The `status` field in `Order` further supports QAPs by allowing efficient filtering for 'pending' or 'active' orders directly in queries, as required by the live dashboard.\n3.  **Role-Based Access:** The `/roles_admin/{adminId}` collection provides a clear and efficient mechanism for granting administrative privileges. An admin can be identified by a simple existence check in security rules, allowing them to perform `list` operations across all collections without requiring complex filters, thus upholding the QAP principle for administrative views.\n\nThis structure ensures that authorization logic is explicit, efficiently implemented in security rules, and directly supported by the data model, reducing complexity and enhancing overall system integrity. The reported `auth/invalid-api-key` error is a client-side Firebase configuration issue related to the `firebaseConfig` object and is separate from the Firestore data structure design itself. It needs to be resolved by ensuring the correct Firebase project API key is used in `src/firebase/config.ts`."
   }
 }
