@@ -2,84 +2,35 @@
  * FIRESTORE SECURITY RULES
  * 
  * CORE PHILOSOPHY:
- * This ruleset implements a multi-party delivery ecosystem (LODS) with a focus on Authorization Independence.
- * Access is governed by specific roles (Admin, Merchant, Rider, Customer) and direct document ownership.
- * 
- * PROTOTYPE NOTE:
- * For this administrative terminal, authenticated users are granted broad access to manage the ecosystem
- * (merchants, riders, orders, and system users) to ensure a smooth management experience.
+ * This is an administrative terminal for LODS (Lean On Delivery Services).
+ * Authenticated users (Managers, Admins) are granted full operational access
+ * to manage the ecosystem including orders, fleet, and partners.
  */
 
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper Functions ---
-
-    /** @description Checks if the user is authenticated. */
+    // Helper: Is the request authenticated?
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** 
-     * @description Checks if the user has a valid profile in the system.
-     * Deleting a user's profile document effectively revokes their operational access.
+    /**
+     * @description Global access for authenticated terminal users.
+     * Allows list, get, create, update, and delete across all core management collections.
      */
-    function hasActiveProfile(userId) {
-      return exists(/databases/$(database)/documents/users/$(userId));
-    }
-
-    /** 
-     * @description Checks if the user has administrative privileges.
-     * In this prototype terminal, we permit any authenticated user to manage resources,
-     * but maintain the structure for role-based checks.
-     */
-    function isAdmin() {
-      return isSignedIn();
-    }
-
-    // --- Collection Rules ---
+    match /roles_admin/{adminId} { allow read, write: if isSignedIn(); }
+    match /merchants/{merchantId} { allow read, write: if isSignedIn(); }
+    match /riders/{riderId} { allow read, write: if isSignedIn(); }
+    match /users/{userId} { allow read, write: if isSignedIn(); }
+    match /deliveryRates/{deliveryRateId} { allow read, write: if isSignedIn(); }
+    match /orders/{orderId} { allow read, write: if isSignedIn(); }
 
     /**
-     * @description Administrative user registry.
+     * @description Fallback for any other collections created within the terminal environment.
      */
-    match /roles_admin/{adminId} {
-      allow read, write: if isSignedIn();
-    }
-
-    /**
-     * @description Merchant profiles. Accessible to all terminal users.
-     */
-    match /merchants/{merchantId} {
-      allow read, write: if isSignedIn();
-    }
-
-    /**
-     * @description Rider profiles and location. Accessible to all terminal users.
-     */
-    match /riders/{riderId} {
-      allow read, write: if isSignedIn();
-    }
-    
-    /**
-     * @description User profiles (RIDERS/MANAGERS).
-     * Only users with an active profile document can be listed or managed.
-     */
-    match /users/{userId} {
-      allow read, write: if isSignedIn();
-    }
-
-    /**
-     * @description Pricing and rate configurations.
-     */
-    match /deliveryRates/{deliveryRateId} {
-      allow read, write: if isSignedIn();
-    }
-
-    /**
-     * @description Delivery booking records.
-     */
-    match /orders/{orderId} {
+    match /{document=**} {
       allow read, write: if isSignedIn();
     }
   }
