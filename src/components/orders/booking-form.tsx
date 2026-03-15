@@ -6,7 +6,7 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form"
 import * as z from "zod"
 import { collection, query, orderBy, where, serverTimestamp } from "firebase/firestore"
 import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase"
-import { Sparkles, Loader2, Package, MapPin, Store, User, ShoppingCart, Plus, Trash2, Banknote, Truck } from "lucide-react"
+import { Sparkles, Loader2, Package, MapPin, Store, User, ShoppingCart, Plus, Trash2, Banknote, Truck, Navigation, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -54,8 +54,16 @@ export function BookingForm() {
     return query(collection(firestore, "users"), where("role", "==", "rider"), where("status", "==", "online"))
   }, [firestore])
 
+  const ratesQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "deliveryRates"), orderBy("LOCATION", "asc"))
+  }, [firestore])
+
   const { data: merchants, isLoading: loadingMerchants } = useCollection(merchantsQuery)
   const { data: riders, isLoading: loadingRiders } = useCollection(ridersQuery)
+  const { data: rates } = useCollection(ratesQuery)
+
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   const form = useForm<z.infer<typeof pabiliSchema>>({
     resolver: zodResolver(pabiliSchema),
@@ -85,6 +93,21 @@ export function BookingForm() {
     control: form.control,
     name: "deliveryFee",
   })
+  const deliveryAddressWatch = useWatch({
+    control: form.control,
+    name: "deliveryAddress"
+  })
+
+  useEffect(() => {
+    if (deliveryAddressWatch && rates) {
+      const filtered = rates.filter(rate => 
+        rate.LOCATION?.toLowerCase().includes(deliveryAddressWatch.toLowerCase())
+      ).slice(0, 5)
+      setAddressSuggestions(filtered)
+    } else {
+      setAddressSuggestions([])
+    }
+  }, [deliveryAddressWatch, rates])
 
   const calculateSubtotal = () => {
     return itemsWatch.reduce((acc, item) => acc + (item.qty * item.price), 0)
@@ -92,6 +115,16 @@ export function BookingForm() {
 
   const subtotal = calculateSubtotal()
   const grandTotal = subtotal + Number(deliveryFeeWatch)
+
+  const handleSelectSuggestion = (rate: any) => {
+    form.setValue("deliveryAddress", rate.LOCATION)
+    form.setValue("deliveryFee", Number(rate["DELIVERY FEE"]))
+    setShowSuggestions(false)
+    toast({
+      title: "Rate Synchronized",
+      description: `Delivery fee for ${rate.LOCATION} set to ₱${rate["DELIVERY FEE"]}.`,
+    })
+  }
 
   async function onSubmit(values: z.infer<typeof pabiliSchema>) {
     const selectedMerchant = merchants?.find(m => m.id === values.merchantId)
@@ -226,11 +259,46 @@ export function BookingForm() {
                   control={form.control}
                   name="deliveryAddress"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="relative">
                       <FormLabel>Ship To Address</FormLabel>
                       <FormControl>
-                        <Input placeholder="Full street address, landmark" {...field} className="bg-background" />
+                        <div className="relative">
+                          <Input 
+                            placeholder="Full street address, landmark" 
+                            {...field} 
+                            className="bg-background" 
+                            onFocus={() => setShowSuggestions(true)}
+                            onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                            autoComplete="off"
+                          />
+                          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
+                        </div>
                       </FormControl>
+                      {showSuggestions && addressSuggestions.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                          {addressSuggestions.map((rate) => (
+                            <div 
+                              key={rate.id} 
+                              className="p-3 hover:bg-muted cursor-pointer flex items-center justify-between border-b last:border-b-0 group transition-colors"
+                              onMouseDown={() => handleSelectSuggestion(rate)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                  <Navigation className="h-4 w-4" />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold">{rate.LOCATION}</span>
+                                  <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Regional Rate Intelligence</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-1.5 font-bold text-primary group-hover:scale-110 transition-transform">
+                                <span className="text-xs">₱</span>
+                                {rate["DELIVERY FEE"]}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
