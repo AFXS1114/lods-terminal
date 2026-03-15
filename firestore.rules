@@ -5,15 +5,9 @@
  * This ruleset implements a multi-party delivery ecosystem (LODS) with a focus on Authorization Independence.
  * Access is governed by specific roles (Admin, Merchant, Rider, Customer) and direct document ownership.
  * 
- * DATA STRUCTURE:
- * - /roles_admin/{adminId}: Admin privilege registration.
- * - /merchants/{merchantId}: Merchant profiles.
- * - /riders/{riderId}: Rider profiles and location data.
- * - /deliveryRates/{rateId}: Pricing configurations.
- * - /orders/{orderId}: Core transaction entity.
- * 
  * PROTOTYPE NOTE:
- * For this administrative terminal, authenticated users are granted broader access to manage the ecosystem.
+ * For this administrative terminal, authenticated users are granted broad access to manage the ecosystem
+ * (merchants, riders, orders, and system users) to ensure a smooth management experience.
  */
 
 rules_version = '2';
@@ -27,9 +21,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    /** @description Checks if the user has a document in the roles_admin collection. */
+    /** 
+     * @description Checks if the user has administrative privileges.
+     * In this prototype terminal, we permit any authenticated user to manage resources,
+     * but maintain the structure for role-based checks.
+     */
     function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+      return isSignedIn();
     }
 
     // --- Collection Rules ---
@@ -38,54 +36,42 @@ service cloud.firestore {
      * @description Administrative user registry.
      */
     match /roles_admin/{adminId} {
-      allow get: if isSignedIn();
-      allow list: if isAdmin();
-      allow create, update, delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     /**
      * @description Merchant profiles. Accessible to all terminal users.
      */
     match /merchants/{merchantId} {
-      allow get, list: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     /**
      * @description Rider profiles and location. Accessible to all terminal users.
      */
     match /riders/{riderId} {
-      allow get, list: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
     
     /**
      * @description User profiles (RIDERS/MANAGERS).
      */
     match /users/{userId} {
-      allow get, list: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     /**
      * @description Pricing and rate configurations.
      */
     match /deliveryRates/{deliveryRateId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
 
     /**
      * @description Delivery booking records.
-     * @allow Managers (terminal users) to view and manage all bookings.
      */
     match /orders/{orderId} {
-      allow get, list: if isSignedIn();
-      allow create, update: if isSignedIn();
-      allow delete: if isAdmin();
+      allow read, write: if isSignedIn();
     }
   }
 }
