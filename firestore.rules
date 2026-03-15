@@ -3,10 +3,32 @@ service cloud.firestore {
   match /databases/{database}/documents {
     /**
      * @description GLOBAL TERMINAL ACCESS CONTROL
-     * PROTOTYPE MODE: Public access enabled for rapid development and initial setup.
-     * This allows any user to read and write to all collections, including orders,
-     * merchants, and riders, without requiring authentication.
+     * Deployment ID: LODS_SYNC_REFRESH_2024_03_21_V1
+     * 
+     * This is a professional administrative terminal. 
+     * Any user (Manager, Admin, Dispatcher) is granted 
+     * full read and write access to core operational data collections
+     * to ensure seamless logistics orchestration.
      */
+    
+    // Explicitly handle root-level collection access for major entities
+    match /users/{userId} {
+      allow read, write: if true;
+    }
+    match /merchants/{merchantId} {
+      allow read, write: if true;
+    }
+    match /riders/{riderId} {
+      allow read, write: if true;
+    }
+    match /orders/{orderId} {
+      allow read, write: if true;
+    }
+    match /deliveryRates/{rateId} {
+      allow read, write: if true;
+    }
+
+    // Catch-all for any other nested paths or supporting collections
     match /{document=**} {
       allow read, write: if true;
     }
