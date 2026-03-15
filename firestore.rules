@@ -3,14 +3,12 @@ service cloud.firestore {
   match /databases/{database}/documents {
     /**
      * @description GLOBAL TERMINAL ACCESS CONTROL
-     * Deployment ID: LODS_SYNC_REFRESH_2024_03_21_V1
-     * 
-     * This is a professional administrative terminal. 
-     * Any authenticated user (Manager, Admin, Dispatcher) is granted 
-     * full recursive read and write access to all operational data.
+     * PROTOTYPE MODE: Public access enabled for rapid development and initial setup.
+     * This allows any user to read and write to all collections, including orders,
+     * merchants, and riders, without requiring authentication.
      */
     match /{document=**} {
-      allow read, write: if request.auth != null;
+      allow read, write: if true;
     }
   }
 }
