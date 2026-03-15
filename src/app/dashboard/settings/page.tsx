@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { collection, query, orderBy, serverTimestamp, doc } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, adminCreateUser, addDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, adminCreateUser, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -30,13 +30,13 @@ import {
   CheckCircle2,
   XCircle,
   MoreVertical,
-  Info,
   Lock,
   MapPin,
   DollarSign,
   Upload,
   Plus,
-  Zap
+  Zap,
+  Navigation
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -57,8 +57,10 @@ export default function SettingsPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
   const [isAddRateOpen, setIsAddRateOpen] = useState(false)
+  const [isEditRateOpen, setIsEditRateOpen] = useState(false)
   const [isActionLoading, setIsActionLoading] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
+  const [selectedRate, setSelectedRate] = useState<any>(null)
 
   const [formData, setFormData] = useState({
     name: "",
@@ -69,14 +71,9 @@ export default function SettingsPage() {
   })
 
   const [rateData, setRateData] = useState({
-    rateName: "",
-    baseFee: "",
-    perKmRate: "",
-    minimumDistanceKm: "",
-    maxDistanceKm: "",
-    weightLimitKg: "",
-    applicableRegion: "",
-    isActive: true
+    LOCATION: "",
+    DISTANCE: "",
+    "DELIVERY FEE": "",
   })
 
   // Queries
@@ -85,7 +82,7 @@ export default function SettingsPage() {
   }, [firestore])
 
   const ratesQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "deliveryRates"), orderBy("applicableRegion", "asc"))
+    return query(collection(firestore, "deliveryRates"), orderBy("LOCATION", "asc"))
   }, [firestore])
 
   const { data: users, isLoading: usersLoading } = useCollection(usersQuery)
@@ -131,21 +128,27 @@ export default function SettingsPage() {
   const handleAddRate = (e: React.FormEvent) => {
     e.preventDefault()
     addDocumentNonBlocking(collection(firestore, "deliveryRates"), {
-      ...rateName,
-      baseFee: parseFloat(rateData.baseFee),
-      perKmRate: parseFloat(rateData.perKmRate),
-      minimumDistanceKm: parseFloat(rateData.minimumDistanceKm),
-      maxDistanceKm: parseFloat(rateData.maxDistanceKm),
-      weightLimitKg: parseFloat(rateData.weightLimitKg),
-      rateName: rateData.rateName,
-      applicableRegion: rateData.applicableRegion,
-      isActive: rateData.isActive,
+      ...rateData,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
-    toast({ title: "Rate Configured", description: `New rate for ${rateData.applicableRegion} has been deployed.` })
+    toast({ title: "Rate Configured", description: `New rate for ${rateData.LOCATION} has been deployed.` })
     setIsAddRateOpen(false)
     resetRateForm()
+  }
+
+  const handleUpdateRate = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedRate) return
+
+    updateDocumentNonBlocking(doc(firestore, "deliveryRates", selectedRate.id), {
+      "DELIVERY FEE": rateData["DELIVERY FEE"],
+      updatedAt: serverTimestamp()
+    })
+
+    toast({ title: "Fee Updated", description: `Delivery fee for ${selectedRate.LOCATION} is now ${rateData["DELIVERY FEE"]}.` })
+    setIsEditRateOpen(false)
+    setSelectedRate(null)
   }
 
   const handleJsonUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,14 +182,9 @@ export default function SettingsPage() {
 
   const resetRateForm = () => {
     setRateData({
-      rateName: "",
-      baseFee: "",
-      perKmRate: "",
-      minimumDistanceKm: "",
-      maxDistanceKm: "",
-      weightLimitKg: "",
-      applicableRegion: "",
-      isActive: true
+      LOCATION: "",
+      DISTANCE: "",
+      "DELIVERY FEE": "",
     })
   }
 
@@ -441,43 +439,23 @@ export default function SettingsPage() {
                     <DialogDescription>Configure pricing metrics for a specific geographical region.</DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label>Rate Label</Label>
-                        <Input placeholder="e.g. Lagos Mainland" value={rateData.rateName} onChange={e => setRateData({...rateData, rateName: e.target.value})} required />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Region</Label>
-                        <Input placeholder="City or Zone" value={rateData.applicableRegion} onChange={e => setRateData({...rateData, applicableRegion: e.target.value})} required />
-                      </div>
+                    <div className="space-y-2">
+                      <Label>Location Name</Label>
+                      <Input placeholder="e.g. Cadandanan" value={rateData.LOCATION} onChange={e => setRateData({...rateData, LOCATION: e.target.value})} required />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <Label>Base Fee ($)</Label>
-                        <Input type="number" step="0.01" value={rateData.baseFee} onChange={e => setRateData({...rateData, baseFee: e.target.value})} required />
+                      <div className="space-y-2">
+                        <Label>Distance Metric</Label>
+                        <Input placeholder="e.g. 13 km" value={rateData.DISTANCE} onChange={e => setRateData({...rateData, DISTANCE: e.target.value})} required />
                       </div>
-                      <div className="space-y-1">
-                        <Label>Per KM Rate ($)</Label>
-                        <Input type="number" step="0.01" value={rateData.perKmRate} onChange={e => setRateData({...rateData, perKmRate: e.target.value})} required />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div className="space-y-1">
-                        <Label>Min KM</Label>
-                        <Input type="number" value={rateData.minimumDistanceKm} onChange={e => setRateData({...rateData, minimumDistanceKm: e.target.value})} required />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Max KM</Label>
-                        <Input type="number" value={rateData.maxDistanceKm} onChange={e => setRateData({...rateData, maxDistanceKm: e.target.value})} required />
-                      </div>
-                      <div className="space-y-1">
-                        <Label>Weight (kg)</Label>
-                        <Input type="number" value={rateData.weightLimitKg} onChange={e => setRateData({...rateData, weightLimitKg: e.target.value})} required />
+                      <div className="space-y-2">
+                        <Label>Delivery Fee</Label>
+                        <Input placeholder="e.g. 195" value={rateData["DELIVERY FEE"]} onChange={e => setRateData({...rateData, "DELIVERY FEE": e.target.value})} required />
                       </div>
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit">Deploy Rate structure</Button>
+                    <Button type="submit">Deploy Rate Structure</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -494,46 +472,66 @@ export default function SettingsPage() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>Region & Label</TableHead>
-                      <TableHead>Base Fee</TableHead>
-                      <TableHead>Surcharge</TableHead>
-                      <TableHead>Distance Limit</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Ops</TableHead>
+                      <TableHead>Location</TableHead>
+                      <TableHead>Distance</TableHead>
+                      <TableHead>Delivery Fee</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {rates?.map((rate) => (
-                      <TableRow key={rate.id} className="hover:bg-muted/20 transition-colors">
+                      <TableRow key={rate.id} className="hover:bg-muted/20 transition-colors group">
                         <TableCell>
-                          <div className="flex flex-col">
-                            <span className="font-bold text-sm">{rate.applicableRegion}</span>
-                            <span className="text-[10px] text-muted-foreground uppercase font-medium">{rate.rateName}</span>
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-primary" />
+                            <span className="font-bold text-sm">{rate.LOCATION}</span>
                           </div>
                         </TableCell>
-                        <TableCell className="font-mono text-xs font-bold text-primary">${rate.baseFee.toFixed(2)}</TableCell>
-                        <TableCell className="text-xs font-medium">${rate.perKmRate.toFixed(2)} / km</TableCell>
-                        <TableCell className="text-xs">{rate.maxDistanceKm}km</TableCell>
                         <TableCell>
-                          <Badge variant={rate.isActive ? "default" : "outline"} className={rate.isActive ? "bg-green-500" : ""}>
-                            {rate.isActive ? "Live" : "Inactive"}
+                          <Badge variant="outline" className="font-mono text-[10px]">
+                            <Navigation className="h-3 w-3 mr-1" />
+                            {rate.DISTANCE}
                           </Badge>
                         </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-1.5 font-bold text-primary">
+                            <DollarSign className="h-4 w-4" />
+                            {rate["DELIVERY FEE"]}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-right">
-                           <Button 
-                             variant="ghost" 
-                             size="icon" 
-                             className="h-8 w-8 text-destructive"
-                             onClick={() => deleteDocumentNonBlocking(doc(firestore, "deliveryRates", rate.id))}
-                           >
-                             <Trash2 className="h-4 w-4" />
-                           </Button>
+                           <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className="h-8 w-8 text-primary"
+                               onClick={() => {
+                                 setSelectedRate(rate)
+                                 setRateData({
+                                   LOCATION: rate.LOCATION,
+                                   DISTANCE: rate.DISTANCE,
+                                   "DELIVERY FEE": rate["DELIVERY FEE"]
+                                 })
+                                 setIsEditRateOpen(true)
+                               }}
+                             >
+                               <Edit2 className="h-4 w-4" />
+                             </Button>
+                             <Button 
+                               variant="ghost" 
+                               size="icon" 
+                               className="h-8 w-8 text-destructive"
+                               onClick={() => deleteDocumentNonBlocking(doc(firestore, "deliveryRates", rate.id))}
+                             >
+                               <Trash2 className="h-4 w-4" />
+                             </Button>
+                           </div>
                         </TableCell>
                       </TableRow>
                     ))}
-                    {!rates || rates.length === 0 && (
+                    {(!rates || rates.length === 0) && (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground italic">
+                        <TableCell colSpan={4} className="h-24 text-center text-muted-foreground italic">
                           No rates defined. Use Bulk Import or manual entry.
                         </TableCell>
                       </TableRow>
@@ -543,6 +541,53 @@ export default function SettingsPage() {
               )}
             </CardContent>
           </Card>
+
+          <Dialog open={isEditRateOpen} onOpenChange={setIsEditRateOpen}>
+            <DialogContent className="sm:max-w-[425px]">
+              <form onSubmit={handleUpdateRate}>
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Edit2 className="h-5 w-5 text-primary" /> Edit Delivery Fee
+                  </DialogTitle>
+                  <DialogDescription>
+                    Update the pricing for this specific logistics route.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-6">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Location</span>
+                      <span className="text-sm font-bold">{selectedRate?.LOCATION}</span>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Distance</span>
+                      <span className="text-sm font-bold">{selectedRate?.DISTANCE}</span>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="fee" className="text-primary font-bold">New Delivery Fee</Label>
+                    <div className="relative">
+                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input 
+                        id="fee" 
+                        className="pl-9 font-bold text-lg h-12 border-primary/20 focus:border-primary" 
+                        value={rateData["DELIVERY FEE"]} 
+                        onChange={e => setRateData({...rateData, "DELIVERY FEE": e.target.value})} 
+                        required 
+                      />
+                    </div>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="button" variant="ghost" onClick={() => setIsEditRateOpen(false)}>Cancel</Button>
+                  <Button type="submit" className="shadow-lg shadow-primary/20">
+                    Apply Changes
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="preferences" className="space-y-6">
