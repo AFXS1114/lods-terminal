@@ -1,9 +1,7 @@
-
 "use client"
 
-import { useState, useEffect } from "react"
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore"
-import { db } from "@/firebase/config"
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { collection, query, orderBy } from "firebase/firestore"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookingForm } from "@/components/orders/booking-form"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,18 +10,13 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 
 export default function OrdersPage() {
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const firestore = useFirestore()
+  
+  const ordersQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "orders"), orderBy("createdAt", "desc"))
+  }, [firestore])
 
-  useEffect(() => {
-    const q = query(collection(db, "orders"), orderBy("createdAt", "desc"))
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setOrders(data)
-      setLoading(false)
-    })
-    return () => unsubscribe()
-  }, [])
+  const { data: orders, isLoading } = useCollection(ordersQuery)
 
   const getStatusVariant = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -54,7 +47,7 @@ export default function OrdersPage() {
               <CardDescription>A comprehensive list of all past and current deliveries.</CardDescription>
             </CardHeader>
             <CardContent className="p-0">
-              {loading ? (
+              {isLoading ? (
                 <div className="flex h-64 items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
@@ -71,7 +64,7 @@ export default function OrdersPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {orders.length === 0 ? (
+                    {!orders || orders.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
                           No orders found. Create your first booking.
@@ -81,18 +74,18 @@ export default function OrdersPage() {
                       orders.map((order) => (
                         <TableRow key={order.id} className="hover:bg-muted/30">
                           <TableCell className="font-mono text-xs font-bold text-primary">
-                            {order.bookingNo}
+                            {order.bookingNo || 'LODS-XXXXX'}
                           </TableCell>
                           <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
-                          <TableCell className="max-w-[150px] truncate text-xs">{order.pickupLocation?.address}</TableCell>
-                          <TableCell className="max-w-[150px] truncate text-xs">{order.deliveryLocation?.address}</TableCell>
+                          <TableCell className="max-w-[150px] truncate text-xs">{order.pickupLocation?.address || order.pickupAddress}</TableCell>
+                          <TableCell className="max-w-[150px] truncate text-xs">{order.deliveryLocation?.address || order.deliveryAddress}</TableCell>
                           <TableCell>
                             <Badge variant={getStatusVariant(order.status)}>
                               {order.status}
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-bold text-sm">
-                            ${order.finalTotal?.toFixed(2)}
+                            ${(Number(order.finalTotal) || 0).toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))

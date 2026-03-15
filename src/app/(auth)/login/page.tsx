@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { signInWithEmailAndPassword } from "firebase/auth"
-import { auth } from "@/firebase/config"
+import { useAuth } from "@/firebase"
 import { Loader2, ArrowRight, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,21 +19,19 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
+  const auth = useAuth()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      // Live Firebase Authentication using direct SDK
       await signInWithEmailAndPassword(auth, email, password)
       router.push("/dashboard/mission-control")
     } catch (error: any) {
       toast({
         title: "Access Denied",
-        description: error.code === 'auth/invalid-api-key' 
-          ? "Terminal Configuration Error: Invalid API Key. Please check environment variables."
-          : error.message || "Invalid credentials.",
+        description: error.message || "Invalid credentials.",
         variant: "destructive",
       })
     } finally {

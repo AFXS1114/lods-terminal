@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { collection, query, onSnapshot, orderBy, limit, where } from "firebase/firestore"
-import { db } from "@/firebase/config"
+import { useMemo } from "react"
+import { collection, query, orderBy, limit, where } from "firebase/firestore"
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { OrderStats } from "@/components/dashboard/order-stats"
 import { LiveOrderFeed } from "@/components/dashboard/live-order-feed"
 import { OperationsMap } from "@/components/dashboard/operations-map"
@@ -12,49 +12,24 @@ import { Button } from "@/components/ui/button"
 import { Loader2, RefreshCcw } from "lucide-react"
 
 export default function MissionControlPage() {
-  const [orders, setOrders] = useState<any[]>([])
-  const [riders, setRiders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const firestore = useFirestore()
 
-  useEffect(() => {
-    const ordersQuery = query(
-      collection(db, "orders"),
-      orderBy("createdAt", "desc"),
-      limit(50)
-    )
+  const ordersQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "orders"), orderBy("createdAt", "desc"), limit(50))
+  }, [firestore])
 
-    const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setOrders(ordersData)
-      setLoading(false)
-    })
+  const ridersQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "users"), where("role", "==", "rider"), where("status", "==", "online"))
+  }, [firestore])
 
-    const ridersQuery = query(
-      collection(db, "users"),
-      where("role", "==", "rider"),
-      where("status", "==", "online")
-    )
-
-    const unsubscribeRiders = onSnapshot(ridersQuery, (snapshot) => {
-      const ridersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setRiders(ridersData)
-    })
-
-    return () => {
-      unsubscribeOrders()
-      unsubscribeRiders()
-    }
-  }, [])
+  const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery)
+  const { data: riders } = useCollection(ridersQuery)
 
   const stats = useMemo(() => {
+    if (!orders) return { active: 0, online: riders?.length || 0, revenue: 0, pending: 0 }
+    
     const active = orders.filter(o => o.status === 'pending' || o.status === 'in-transit').length
-    const online = riders.length
+    const online = riders?.length || 0
     const pending = orders.filter(o => o.status === 'pending').length
     
     const todayRevenue = orders
@@ -64,7 +39,7 @@ export default function MissionControlPage() {
     return { active, online, revenue: todayRevenue, pending }
   }, [orders, riders])
 
-  if (loading) {
+  if (ordersLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -100,7 +75,7 @@ export default function MissionControlPage() {
             <CardDescription>Real-time delivery status</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <LiveOrderFeed orders={orders.slice(0, 8)} />
+            <LiveOrderFeed orders={orders?.slice(0, 8) || []} />
           </CardContent>
         </Card>
 
@@ -110,7 +85,7 @@ export default function MissionControlPage() {
             <CardDescription>Fleet & destination visualizer</CardDescription>
           </CardHeader>
           <CardContent className="p-0 h-[400px]">
-            <OperationsMap riders={riders} orders={orders} />
+            <OperationsMap riders={riders || []} orders={orders || []} />
           </CardContent>
         </Card>
 

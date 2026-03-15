@@ -1,10 +1,9 @@
-
-'use client';
+"use client"
 
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const genAI = new GoogleGenerativeAI(process.env.NEXT_PUBLIC_GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export interface AiBookingAssistantInput {
   pickupAddress: string;
@@ -35,6 +34,7 @@ Provide the output in valid JSON format only, with these keys: packageType, esti
     const result = await model.generateContent(prompt);
     const response = await result.response;
     const text = response.text();
+    // Clean potential markdown code blocks
     const cleanText = text.replace(/```json|```/g, "").trim();
     return JSON.parse(cleanText) as AiBookingAssistantOutput;
   } catch (error) {

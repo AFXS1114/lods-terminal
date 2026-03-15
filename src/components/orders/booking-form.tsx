@@ -1,18 +1,16 @@
-
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
-import { collection, onSnapshot, query, orderBy, addDoc, serverTimestamp } from "firebase/firestore"
-import { db } from "@/firebase/config"
-import { Sparkles, Loader2, Package, MapPin, Info, Store } from "lucide-react"
+import { collection, query, orderBy } from "firebase/firestore"
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase"
+import { Sparkles, Loader2, Package, MapPin, Store } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -34,14 +32,19 @@ const bookingSchema = z.object({
   estimatedWeight: z.string().optional(),
   deliveryWindow: z.string().optional(),
   customerName: z.string().min(2, "Customer name required"),
-  finalTotal: z.string().default("0"),
+  finalTotal: z.string().default("15.00"),
 })
 
 export function BookingForm() {
   const [isAiLoading, setIsAiLoading] = useState(false)
-  const [merchants, setMerchants] = useState<any[]>([])
-  const [loadingMerchants, setLoadingMerchants] = useState(true)
+  const firestore = useFirestore()
   const { toast } = useToast()
+
+  const merchantsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "merchants"), orderBy("name", "asc"))
+  }, [firestore])
+
+  const { data: merchants, isLoading: loadingMerchants } = useCollection(merchantsQuery)
   
   const form = useForm<z.infer<typeof bookingSchema>>({
     resolver: zodResolver(bookingSchema),
@@ -57,16 +60,6 @@ export function BookingForm() {
       finalTotal: "15.00",
     },
   })
-
-  useEffect(() => {
-    const q = query(collection(db, "merchants"), orderBy("name", "asc"))
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, name: doc.data().name }))
-      setMerchants(data)
-      setLoadingMerchants(false)
-    })
-    return () => unsubscribe()
-  }, [])
 
   async function handleAiAssistant() {
     const values = form.getValues()
@@ -107,45 +100,37 @@ export function BookingForm() {
   }
 
   async function onSubmit(values: z.infer<typeof bookingSchema>) {
-    try {
-      const selectedMerchant = merchants.find(m => m.id === values.merchantId)
-      
-      await addDoc(collection(db, "orders"), {
-        bookingNo: `LODS-${Math.floor(10000 + Math.random() * 90000)}`,
-        customerName: values.customerName,
-        merchant: selectedMerchant?.name || "Unknown Merchant",
-        merchantId: values.merchantId,
-        status: "pending",
-        finalTotal: parseFloat(values.finalTotal),
-        createdAt: serverTimestamp(),
-        deliveryLocation: {
-          address: values.deliveryAddress,
-          lat: 6.5244,
-          lng: 3.3792
-        },
-        pickupLocation: {
-          address: values.pickupAddress
-        },
-        itemDetails: {
-          description: values.itemDescription,
-          packageType: values.packageType,
-          weight: values.estimatedWeight,
-          window: values.deliveryWindow
-        }
-      })
+    const selectedMerchant = merchants?.find(m => m.id === values.merchantId)
+    
+    addDocumentNonBlocking(collection(firestore, "orders"), {
+      bookingNo: `LODS-${Math.floor(10000 + Math.random() * 90000)}`,
+      customerName: values.customerName,
+      merchant: selectedMerchant?.name || "Unknown Merchant",
+      merchantId: values.merchantId,
+      status: "pending",
+      finalTotal: parseFloat(values.finalTotal),
+      createdAt: new Date().toISOString(), // Using ISO string as per existing backend.json schema for format: date-time
+      deliveryLocation: {
+        address: values.deliveryAddress,
+        lat: 6.5244,
+        lng: 3.3792
+      },
+      pickupLocation: {
+        address: values.pickupAddress
+      },
+      itemDetails: {
+        description: values.itemDescription,
+        packageType: values.packageType,
+        weight: values.estimatedWeight,
+        window: values.deliveryWindow
+      }
+    })
 
-      toast({
-        title: "Booking Created",
-        description: "The delivery order has been successfully logged.",
-      })
-      form.reset()
-    } catch (error: any) {
-      toast({
-        variant: "destructive",
-        title: "Creation Failed",
-        description: error.message
-      })
-    }
+    toast({
+      title: "Booking Created",
+      description: "The delivery order has been successfully logged.",
+    })
+    form.reset()
   }
 
   return (
@@ -220,10 +205,10 @@ export function BookingForm() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {merchants.map(m => (
+                          {merchants?.map(m => (
                             <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>
                           ))}
-                          {merchants.length === 0 && !loadingMerchants && (
+                          {(!merchants || merchants.length === 0) && !loadingMerchants && (
                             <div className="p-2 text-xs text-center text-muted-foreground">No merchants found. Add one in Partners Registry.</div>
                           )}
                         </SelectContent>
