@@ -1,37 +1,14 @@
-/**
- * FIRESTORE SECURITY RULES
- * 
- * CORE PHILOSOPHY:
- * This is an administrative terminal for LODS (Lean On Delivery Services).
- * Authenticated users (Managers, Admins) are granted full operational access
- * to manage the ecosystem including orders, fleet, and partners.
- */
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Helper: Is the request authenticated?
-    function isSignedIn() {
-      return request.auth != null;
-    }
-
     /**
-     * @description Global access for authenticated terminal users.
-     * Allows list, get, create, update, and delete across all core management collections.
-     */
-    match /roles_admin/{adminId} { allow read, write: if isSignedIn(); }
-    match /merchants/{merchantId} { allow read, write: if isSignedIn(); }
-    match /riders/{riderId} { allow read, write: if isSignedIn(); }
-    match /users/{userId} { allow read, write: if isSignedIn(); }
-    match /deliveryRates/{deliveryRateId} { allow read, write: if isSignedIn(); }
-    match /orders/{orderId} { allow read, write: if isSignedIn(); }
-
-    /**
-     * @description Fallback for any other collections created within the terminal environment.
+     * @description GLOBAL ACCESS CONTROL
+     * This is a professional administrative terminal. 
+     * Any authenticated user (Manager, Admin, Dispatcher) is granted 
+     * full recursive read and write access to all operational data.
      */
     match /{document=**} {
-      allow read, write: if isSignedIn();
+      allow read, write: if request.auth != null;
     }
   }
 }
