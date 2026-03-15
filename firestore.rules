@@ -3,30 +3,13 @@ service cloud.firestore {
   match /databases/{database}/documents {
     /**
      * @description GLOBAL TERMINAL ACCESS CONTROL
-     * Deployment ID: LODS_SYNC_REFRESH_2024_03_20
+     * Deployment ID: LODS_SYNC_REFRESH_2024_03_21_V1
      * 
      * This is a professional administrative terminal. 
      * Any authenticated user (Manager, Admin, Dispatcher) is granted 
      * full recursive read and write access to all operational data.
      */
     match /{document=**} {
-      allow read, write: if request.auth != null;
-    }
-
-    // Explicitly handle root-level collection listing for major entities
-    match /users/{userId} {
-      allow read, write: if request.auth != null;
-    }
-    match /merchants/{merchantId} {
-      allow read, write: if request.auth != null;
-    }
-    match /riders/{riderId} {
-      allow read, write: if request.auth != null;
-    }
-    match /orders/{orderId} {
-      allow read, write: if request.auth != null;
-    }
-    match /deliveryRates/{rateId} {
       allow read, write: if request.auth != null;
     }
   }
