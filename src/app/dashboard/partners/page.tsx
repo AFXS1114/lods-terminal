@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, updateDoc, doc, where } from "firebase/firestore"
-import { db } from "@/firebase/config"
+import { useState } from "react"
+import { collection, query, orderBy, serverTimestamp, doc, where } from "firebase/firestore"
+import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -11,20 +11,18 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Store, Plus, Search, MoreHorizontal, ShoppingBag, Phone, MapPin, User, CheckCircle2, XCircle, Loader2 } from "lucide-react"
+import { Store, Plus, Search, MoreHorizontal, Phone, User, CheckCircle2, XCircle, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Checkbox } from "@/components/ui/checkbox"
 
 export default function PartnersPage() {
-  const [merchants, setMerchants] = useState<any[]>([])
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const firestore = useFirestore()
+  const { toast } = useToast()
+  
   const [searchTerm, setSearchTerm] = useState("")
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
-  const { toast } = useToast()
 
-  // Form State
   const [formData, setFormData] = useState({
     name: "",
     category: "Food",
@@ -33,74 +31,55 @@ export default function PartnersPage() {
     address: "",
   })
 
-  useEffect(() => {
-    // Listen for all merchants
-    const merchantsQuery = query(collection(db, "merchants"), orderBy("name", "asc"))
-    const unsubscribeMerchants = onSnapshot(merchantsQuery, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setMerchants(data)
-      setLoading(false)
-    })
+  // Queries
+  const merchantsQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "merchants"), orderBy("name", "asc"))
+  }, [firestore])
 
-    // Listen for orders to calculate merchant metrics
-    const ordersQuery = query(collection(db, "orders"), where("status", "in", ["pending", "in-transit", "picked-up"]))
-    const unsubscribeOrders = onSnapshot(ordersQuery, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      setOrders(data)
-    })
+  const activeOrdersQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "orders"), where("status", "in", ["pending", "in-transit", "picked-up"]))
+  }, [firestore])
 
-    return () => {
-      unsubscribeMerchants()
-      unsubscribeOrders()
-    }
-  }, [])
+  // Real-time data
+  const { data: merchants, isLoading: loadingMerchants } = useCollection(merchantsQuery)
+  const { data: activeOrders } = useCollection(activeOrdersQuery)
 
   const handleAddMerchant = async (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      await addDoc(collection(db, "merchants"), {
-        ...formData,
-        status: "active",
-        createdAt: serverTimestamp(),
-      })
-      toast({ title: "Merchant Added", description: `${formData.name} has been successfully registered.` })
-      setIsModalOpen(false)
-      setFormData({ name: "", category: "Food", contactPerson: "", phone: "", address: "" })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Registration Failed", description: error.message })
-    }
+    addDocumentNonBlocking(collection(firestore, "merchants"), {
+      ...formData,
+      status: "active",
+      createdAt: serverTimestamp(),
+    })
+    toast({ title: "Merchant Added", description: `${formData.name} has been successfully registered.` })
+    setIsModalOpen(false)
+    setFormData({ name: "", category: "Food", contactPerson: "", phone: "", address: "" })
   }
 
-  const toggleStatus = async (id: string, currentStatus: string) => {
+  const toggleStatus = (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active"
-    try {
-      await updateDoc(doc(db, "merchants", id), { status: newStatus })
-      toast({ title: "Status Updated", description: `Merchant is now ${newStatus}.` })
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Update Failed", description: error.message })
-    }
+    updateDocumentNonBlocking(doc(firestore, "merchants", id), { status: newStatus })
+    toast({ title: "Status Updated", description: `Merchant is now ${newStatus}.` })
   }
 
-  const handleBulkStatus = async (newStatus: "active" | "inactive") => {
-    try {
-      await Promise.all(selectedIds.map(id => updateDoc(doc(db, "merchants", id), { status: newStatus })))
-      toast({ title: "Bulk Update Successful", description: `${selectedIds.length} merchants updated to ${newStatus}.` })
-      setSelectedIds([])
-    } catch (error: any) {
-      toast({ variant: "destructive", title: "Bulk Update Failed", description: error.message })
-    }
+  const handleBulkStatus = (newStatus: "active" | "inactive") => {
+    selectedIds.forEach(id => {
+      updateDocumentNonBlocking(doc(firestore, "merchants", id), { status: newStatus })
+    })
+    toast({ title: "Bulk Update Initialized", description: `${selectedIds.length} merchants being updated to ${newStatus}.` })
+    setSelectedIds([])
   }
 
-  const filteredMerchants = merchants.filter(m => 
+  const filteredMerchants = merchants?.filter(m => 
     m.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     m.category?.toLowerCase().includes(searchTerm.toLowerCase())
-  )
+  ) || []
 
   const getActiveOrdersCount = (merchantId: string) => {
-    return orders.filter(o => o.merchantId === merchantId).length
+    return activeOrders?.filter(o => o.merchantId === merchantId).length || 0
   }
 
-  if (loading) {
+  if (loadingMerchants) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
@@ -189,7 +168,7 @@ export default function PartnersPage() {
         </div>
       </div>
 
-      {filteredMerchants.length === 0 ? (
+      {!merchants || merchants.length === 0 ? (
         <Card className="border-dashed py-20 bg-muted/20">
           <CardContent className="flex flex-col items-center text-center">
             <Store className="h-16 w-16 text-muted-foreground mb-4 opacity-30" />

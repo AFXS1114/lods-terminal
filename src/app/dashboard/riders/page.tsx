@@ -1,56 +1,27 @@
-
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { collection, query, onSnapshot, where } from "firebase/firestore"
-import { db } from "@/firebase/config"
+import { collection, query, where } from "firebase/firestore"
+import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { RiderStats } from "@/components/riders/rider-stats"
 import { RiderList } from "@/components/riders/rider-list"
 import { RiderSidebar } from "@/components/riders/rider-sidebar"
 import { Loader2 } from "lucide-react"
 
 export default function RidersPage() {
-  const [riders, setRiders] = useState<any[]>([])
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const firestore = useFirestore()
 
-  useEffect(() => {
-    // Listen for all riders
-    const ridersQuery = query(
-      collection(db, "users"),
-      where("role", "==", "rider")
-    )
+  const ridersQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "users"), where("role", "==", "rider"))
+  }, [firestore])
 
-    const unsubscribeRiders = onSnapshot(ridersQuery, (snapshot) => {
-      const ridersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setRiders(ridersData)
-      setLoading(false)
-    })
+  const activeOrdersQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "orders"), where("status", "in", ["pending", "in-transit", "picked-up"]))
+  }, [firestore])
 
-    // Listen for active orders to calculate rider load
-    const activeOrdersQuery = query(
-      collection(db, "orders"),
-      where("status", "in", ["pending", "in-transit", "picked-up"])
-    )
+  const { data: riders, isLoading: ridersLoading } = useCollection(ridersQuery)
+  const { data: activeOrders } = useCollection(activeOrdersQuery)
 
-    const unsubscribeOrders = onSnapshot(activeOrdersQuery, (snapshot) => {
-      const ordersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setOrders(ordersData)
-    })
-
-    return () => {
-      unsubscribeRiders()
-      unsubscribeOrders()
-    }
-  }, [])
-
-  if (loading) {
+  if (ridersLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <div className="text-center space-y-4">
@@ -74,14 +45,14 @@ export default function RidersPage() {
         </div>
       </div>
 
-      <RiderStats riders={riders} orders={orders} />
+      <RiderStats riders={riders || []} orders={activeOrders || []} />
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 space-y-6">
-          <RiderList riders={riders} orders={orders} />
+          <RiderList riders={riders || []} orders={activeOrders || []} />
         </div>
         <div className="lg:col-span-4">
-          <RiderSidebar riders={riders} />
+          <RiderSidebar riders={riders || []} />
         </div>
       </div>
     </div>
