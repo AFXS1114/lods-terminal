@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword } from "firebase/auth"
+import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
 import { useAuth } from "@/firebase"
 import { Loader2, ArrowRight, ShieldCheck, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,11 +10,13 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
+import { Separator } from "@/components/ui/separator"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
   const auth = useAuth()
@@ -37,6 +39,26 @@ export default function LoginPage() {
         variant: "destructive",
       })
       setIsLoading(false)
+    }
+  }
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true)
+    const provider = new GoogleAuthProvider()
+    try {
+      await signInWithPopup(auth, provider)
+      toast({
+        title: "Google Access Granted",
+        description: "Synchronizing profile with terminal...",
+      })
+      router.push("/dashboard/mission-control")
+    } catch (error: any) {
+      toast({
+        title: "Authentication Failed",
+        description: error.message || "Could not complete Google sign-in.",
+        variant: "destructive",
+      })
+      setIsGoogleLoading(false)
     }
   }
 
@@ -63,7 +85,7 @@ export default function LoginPage() {
               Enter credentials to access Mission Control
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -90,11 +112,37 @@ export default function LoginPage() {
                   autoComplete="current-password"
                 />
               </div>
-              <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={isLoading}>
+              <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={isLoading || isGoogleLoading}>
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ArrowRight className="mr-2 h-4 w-4" />}
                 Initialize Link
               </Button>
             </form>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground font-bold tracking-widest">Or Continue With</span>
+              </div>
+            </div>
+
+            <Button 
+              variant="outline" 
+              type="button" 
+              className="w-full border-primary/20 hover:bg-primary/5" 
+              onClick={handleGoogleLogin} 
+              disabled={isLoading || isGoogleLoading}
+            >
+              {isGoogleLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+                  <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
+                </svg>
+              )}
+              Google SSO
+            </Button>
           </CardContent>
           <CardFooter>
             <p className="w-full text-center text-xs text-muted-foreground uppercase font-bold tracking-widest opacity-60">
