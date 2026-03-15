@@ -2,16 +2,14 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 import { signInWithEmailAndPassword } from "firebase/auth"
 import { useAuth } from "@/firebase"
-import { Loader2, ArrowRight, ShieldCheck } from "lucide-react"
+import { Loader2, ArrowRight, ShieldCheck, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import logo from "@/images/logo.png"
 
 export default function LoginPage() {
   const [email, setEmail] = useState("")
@@ -27,14 +25,17 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password)
+      toast({
+        title: "Access Granted",
+        description: "Initializing secure terminal link...",
+      })
       router.push("/dashboard/mission-control")
     } catch (error: any) {
       toast({
         title: "Access Denied",
-        description: error.message || "Invalid credentials.",
+        description: error.message || "Invalid credentials or system offline.",
         variant: "destructive",
       })
-    } finally {
       setIsLoading(false)
     }
   }
@@ -43,15 +44,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
       <div className="w-full max-w-[400px] space-y-6">
         <div className="flex flex-col items-center space-y-4 text-center">
-          <div className="relative h-24 w-24 overflow-hidden rounded-full border-4 border-background bg-white shadow-xl flex items-center justify-center">
-            <Image
-              src={logo}
-              alt="LODS Logo"
-              width={80}
-              height={80}
-              className="object-contain"
-              priority
-            />
+          <div className="h-20 w-20 rounded-2xl bg-primary flex items-center justify-center shadow-xl shadow-primary/20 rotate-3">
+            <Truck className="h-10 w-10 text-white" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-foreground">LODS Terminal</h1>
@@ -81,6 +75,7 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="bg-muted/50"
+                  autoComplete="email"
                 />
               </div>
               <div className="space-y-2">
@@ -92,6 +87,7 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="bg-muted/50"
+                  autoComplete="current-password"
                 />
               </div>
               <Button type="submit" className="w-full shadow-lg shadow-primary/20" disabled={isLoading}>
