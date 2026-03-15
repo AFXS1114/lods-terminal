@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { collection, query, orderBy, serverTimestamp, doc } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from "@/firebase"
+import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, adminCreateUser } from "@/firebase"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -30,7 +30,8 @@ import {
   CheckCircle2,
   XCircle,
   MoreVertical,
-  Info
+  Info,
+  Lock
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -50,11 +51,13 @@ export default function SettingsPage() {
   
   const [searchTerm, setSearchTerm] = useState("")
   const [isAddUserOpen, setIsAddUserOpen] = useState(false)
+  const [isActionLoading, setIsActionLoading] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
 
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    password: "",
     role: "rider" as UserRole,
     status: "online",
   })
@@ -68,25 +71,61 @@ export default function SettingsPage() {
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
-    addDocumentNonBlocking(collection(firestore, "users"), {
-      ...formData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    })
-    toast({ title: "Profile Created", description: `${formData.name} has been added to the registry.` })
-    setIsAddUserOpen(false)
-    resetForm()
+    if (formData.password.length < 6) {
+      toast({ title: "Weak Password", description: "Password must be at least 6 characters.", variant: "destructive" })
+      return
+    }
+
+    setIsActionLoading(true)
+    try {
+      // 1. Create the user in Firebase Authentication using a secondary app instance
+      const uid = await adminCreateUser(formData.email, formData.password)
+      
+      // 2. Create the Firestore profile using the same UID
+      const userRef = doc(firestore, "users", uid)
+      setDocumentNonBlocking(userRef, {
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+        status: formData.status,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+
+      toast({ 
+        title: "Terminal Access Deployed", 
+        description: `${formData.name} is now registered in Auth and Firestore with matching UID.` 
+      })
+      setIsAddUserOpen(false)
+      resetForm()
+    } catch (error: any) {
+      toast({ 
+        title: "Creation Failed", 
+        description: error.message || "Could not synchronize with Authentication server.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsActionLoading(false)
+    }
   }
 
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingUser) return
-    updateDocumentNonBlocking(doc(firestore, "users", editingUser.id), {
-      ...formData,
+    setIsActionLoading(true)
+    
+    const userRef = doc(firestore, "users", editingUser.id)
+    setDocumentNonBlocking(userRef, {
+      name: formData.name,
+      email: formData.email,
+      role: formData.role,
+      status: formData.status,
       updatedAt: serverTimestamp(),
-    })
+    }, { merge: true })
+    
     toast({ title: "Profile Updated", description: `Registry for ${formData.name} has been synchronized.` })
     setEditingUser(null)
+    setIsActionLoading(false)
     resetForm()
   }
 
@@ -94,13 +133,13 @@ export default function SettingsPage() {
     deleteDocumentNonBlocking(doc(firestore, "users", id))
     toast({ 
       title: "Access Revoked", 
-      description: `User ${name} has been removed from the registry. Terminal access is now disabled.`,
+      description: `Firestore profile for ${name} removed. Auth record must be manually deleted in console.`,
       variant: "destructive"
     })
   }
 
   const resetForm = () => {
-    setFormData({ name: "", email: "", role: "rider", status: "online" })
+    setFormData({ name: "", email: "", password: "", role: "rider", status: "online" })
   }
 
   const getRoleIcon = (role: string) => {
@@ -130,9 +169,10 @@ export default function SettingsPage() {
 
       <Alert className="bg-primary/5 border-primary/20">
         <Info className="h-4 w-4 text-primary" />
-        <AlertTitle className="text-sm font-bold">Managerial Note</AlertTitle>
+        <AlertTitle className="text-sm font-bold">Security Protocol</AlertTitle>
         <AlertDescription className="text-xs">
-          Deleting a user here removes their profile and database access permissions. To fully remove their login credentials, please also delete the record from the <strong>Firebase Console Authentication</strong> tab.
+          New users are synchronized across <strong>Authentication</strong> and <strong>Firestore</strong> using a unified UID. 
+          To delete a user entirely, you must also remove them from the Firebase Console Auth tab.
         </AlertDescription>
       </Alert>
 
@@ -168,7 +208,7 @@ export default function SettingsPage() {
                 <form onSubmit={handleAddUser}>
                   <DialogHeader>
                     <DialogTitle>Add Terminal Profile</DialogTitle>
-                    <DialogDescription>Assign registry roles. User must still sign up with this email to log in.</DialogDescription>
+                    <DialogDescription>Assign a UID and password. This user will be immediately added to system Authentication.</DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="space-y-2">
@@ -178,6 +218,21 @@ export default function SettingsPage() {
                     <div className="space-y-2">
                       <Label htmlFor="email">Email Address</Label>
                       <Input id="email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Initial Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                          id="password" 
+                          type="password" 
+                          className="pl-9"
+                          placeholder="Min. 6 characters" 
+                          value={formData.password} 
+                          onChange={e => setFormData({...formData, password: e.target.value})} 
+                          required 
+                        />
+                      </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
@@ -211,7 +266,10 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit">Deploy Profile</Button>
+                    <Button type="submit" disabled={isActionLoading}>
+                      {isActionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                      Deploy User
+                    </Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -234,7 +292,7 @@ export default function SettingsPage() {
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>Registry ID</TableHead>
+                      <TableHead>Registry Profile (UID)</TableHead>
                       <TableHead>Access Role</TableHead>
                       <TableHead>System Status</TableHead>
                       <TableHead className="text-right">Operations</TableHead>
@@ -246,7 +304,7 @@ export default function SettingsPage() {
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-bold text-sm">{user.name}</span>
-                            <span className="text-xs text-muted-foreground">{user.email}</span>
+                            <span className="text-[10px] font-mono text-muted-foreground uppercase">{user.id}</span>
                           </div>
                         </TableCell>
                         <TableCell>
@@ -279,6 +337,7 @@ export default function SettingsPage() {
                                 setFormData({
                                   name: user.name,
                                   email: user.email,
+                                  password: "", // Password not retrieved for security
                                   role: user.role,
                                   status: user.status,
                                 })
@@ -337,16 +396,16 @@ export default function SettingsPage() {
           <form onSubmit={handleEditUser}>
             <DialogHeader>
               <DialogTitle>Modify Registry Profile</DialogTitle>
-              <DialogDescription>Update system permissions for {editingUser?.name}.</DialogDescription>
+              <DialogDescription>Update metadata for {editingUser?.name}. UID is immutable.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="edit-name">Full Name</Label>
                 <Input id="edit-name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} required />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-email">Email Address</Label>
-                <Input id="edit-email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} required />
+              <div className="space-y-2 text-muted-foreground">
+                <Label>Email (Immutable)</Label>
+                <div className="text-sm font-mono p-2 bg-muted rounded border">{editingUser?.email}</div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -381,7 +440,10 @@ export default function SettingsPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
-              <Button type="submit">Update Registry</Button>
+              <Button type="submit" disabled={isActionLoading}>
+                {isActionLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Edit2 className="mr-2 h-4 w-4" />}
+                Update Registry
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
