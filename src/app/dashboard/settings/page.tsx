@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { 
   Settings, 
   Users, 
@@ -28,7 +29,8 @@ import {
   Loader2,
   CheckCircle2,
   XCircle,
-  MoreVertical
+  MoreVertical,
+  Info
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import {
@@ -71,7 +73,7 @@ export default function SettingsPage() {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     })
-    toast({ title: "User Registered", description: `${formData.name} has been added to the terminal.` })
+    toast({ title: "Profile Created", description: `${formData.name} has been added to the registry.` })
     setIsAddUserOpen(false)
     resetForm()
   }
@@ -83,7 +85,7 @@ export default function SettingsPage() {
       ...formData,
       updatedAt: serverTimestamp(),
     })
-    toast({ title: "Profile Updated", description: `Credentials for ${formData.name} have been synchronized.` })
+    toast({ title: "Profile Updated", description: `Registry for ${formData.name} has been synchronized.` })
     setEditingUser(null)
     resetForm()
   }
@@ -92,7 +94,7 @@ export default function SettingsPage() {
     deleteDocumentNonBlocking(doc(firestore, "users", id))
     toast({ 
       title: "Access Revoked", 
-      description: `User ${name} has been removed from the LODS network.`,
+      description: `User ${name} has been removed from the registry. Terminal access is now disabled.`,
       variant: "destructive"
     })
   }
@@ -126,13 +128,21 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      <Alert className="bg-primary/5 border-primary/20">
+        <Info className="h-4 w-4 text-primary" />
+        <AlertTitle className="text-sm font-bold">Managerial Note</AlertTitle>
+        <AlertDescription className="text-xs">
+          Deleting a user here removes their profile and database access permissions. To fully remove their login credentials, please also delete the record from the <strong>Firebase Console Authentication</strong> tab.
+        </AlertDescription>
+      </Alert>
+
       <Tabs defaultValue="users" className="space-y-6">
         <TabsList className="bg-muted/50 p-1 border">
           <TabsTrigger value="users" className="flex items-center gap-2">
-            <Users className="h-4 w-4" /> User Management
+            <Users className="h-4 w-4" /> User Registry
           </TabsTrigger>
           <TabsTrigger value="preferences" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" /> Preferences
+            <Settings className="h-4 w-4" /> Terminal Preferences
           </TabsTrigger>
         </TabsList>
 
@@ -141,7 +151,7 @@ export default function SettingsPage() {
             <div className="relative w-full md:w-96">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Search by name, email, or role..." 
+                placeholder="Search registry..." 
                 className="pl-9 bg-background shadow-sm border-primary/10 focus:border-primary"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -151,14 +161,14 @@ export default function SettingsPage() {
             <Dialog open={isAddUserOpen} onOpenChange={setIsAddUserOpen}>
               <DialogTrigger asChild>
                 <Button className="shadow-lg shadow-primary/20">
-                  <UserPlus className="mr-2 h-4 w-4" /> Register New User
+                  <UserPlus className="mr-2 h-4 w-4" /> Register New Profile
                 </Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-[425px]">
                 <form onSubmit={handleAddUser}>
                   <DialogHeader>
-                    <DialogTitle>Add New Terminal User</DialogTitle>
-                    <DialogDescription>Assign roles and credentials to a new LODS participant.</DialogDescription>
+                    <DialogTitle>Add Terminal Profile</DialogTitle>
+                    <DialogDescription>Assign registry roles. User must still sign up with this email to log in.</DialogDescription>
                   </DialogHeader>
                   <div className="grid gap-4 py-4">
                     <div className="space-y-2">
@@ -201,7 +211,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button type="submit">Deploy User</Button>
+                    <Button type="submit">Deploy Profile</Button>
                   </DialogFooter>
                 </form>
               </DialogContent>
@@ -218,13 +228,13 @@ export default function SettingsPage() {
               ) : filteredUsers.length === 0 ? (
                 <div className="py-20 text-center space-y-4">
                   <Users className="h-12 w-12 text-muted-foreground mx-auto opacity-20" />
-                  <p className="text-muted-foreground">No users found matching your search parameters.</p>
+                  <p className="text-muted-foreground">No records found matching your search.</p>
                 </div>
               ) : (
                 <Table>
                   <TableHeader className="bg-muted/30">
                     <TableRow>
-                      <TableHead>Identified User</TableHead>
+                      <TableHead>Registry ID</TableHead>
                       <TableHead>Access Role</TableHead>
                       <TableHead>System Status</TableHead>
                       <TableHead className="text-right">Operations</TableHead>
@@ -299,20 +309,20 @@ export default function SettingsPage() {
               <CardTitle className="text-lg flex items-center gap-2 text-primary">
                 <Settings className="h-5 w-5" /> Operational Preferences
               </CardTitle>
-              <CardDescription>Configure the behavior of your LODS Terminal environment.</CardDescription>
+              <CardDescription>Configure terminal synchronization and notification behavior.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               <div className="flex items-center justify-between space-x-2 p-4 rounded-xl border bg-muted/5">
                 <Label htmlFor="notifications" className="flex flex-col space-y-1">
                   <span className="font-bold">Order Notifications</span>
-                  <span className="font-normal text-xs text-muted-foreground">Receive real-time haptic and audio alerts for new bookings.</span>
+                  <span className="font-normal text-xs text-muted-foreground">Receive real-time alerts for new fleet bookings.</span>
                 </Label>
                 <Switch id="notifications" defaultChecked />
               </div>
               <div className="flex items-center justify-between space-x-2 p-4 rounded-xl border bg-muted/5">
                 <Label htmlFor="auto-refresh" className="flex flex-col space-y-1">
-                  <span className="font-bold">Live Sync Engine</span>
-                  <span className="font-normal text-xs text-muted-foreground">Keep dashboard data synchronized automatically via onSnapshot.</span>
+                  <span className="font-bold">Fleet Sync Engine</span>
+                  <span className="font-normal text-xs text-muted-foreground">Keep registry data synchronized via real-time listeners.</span>
                 </Label>
                 <Switch id="auto-refresh" defaultChecked />
               </div>
@@ -326,8 +336,8 @@ export default function SettingsPage() {
         <DialogContent className="sm:max-w-[425px]">
           <form onSubmit={handleEditUser}>
             <DialogHeader>
-              <DialogTitle>Edit User Profile</DialogTitle>
-              <DialogDescription>Modify permissions or details for {editingUser?.name}.</DialogDescription>
+              <DialogTitle>Modify Registry Profile</DialogTitle>
+              <DialogDescription>Update system permissions for {editingUser?.name}.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="space-y-2">
@@ -371,7 +381,7 @@ export default function SettingsPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditingUser(null)}>Cancel</Button>
-              <Button type="submit">Update Terminal Access</Button>
+              <Button type="submit">Update Registry</Button>
             </DialogFooter>
           </form>
         </DialogContent>

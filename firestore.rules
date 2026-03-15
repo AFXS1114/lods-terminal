@@ -22,6 +22,14 @@ service cloud.firestore {
     }
 
     /** 
+     * @description Checks if the user has a valid profile in the system.
+     * Deleting a user's profile document effectively revokes their operational access.
+     */
+    function hasActiveProfile(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    /** 
      * @description Checks if the user has administrative privileges.
      * In this prototype terminal, we permit any authenticated user to manage resources,
      * but maintain the structure for role-based checks.
@@ -55,6 +63,7 @@ service cloud.firestore {
     
     /**
      * @description User profiles (RIDERS/MANAGERS).
+     * Only users with an active profile document can be listed or managed.
      */
     match /users/{userId} {
       allow read, write: if isSignedIn();
