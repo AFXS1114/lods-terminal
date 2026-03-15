@@ -85,7 +85,7 @@ export default function OrdersPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-bold text-sm">
-                            ${(Number(order.finalTotal) || 0).toFixed(2)}
+                            ₱{(Number(order.finalTotal) || 0).toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))

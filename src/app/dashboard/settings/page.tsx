@@ -32,7 +32,7 @@ import {
   MoreVertical,
   Lock,
   MapPin,
-  DollarSign,
+  Banknote,
   Upload,
   Plus,
   Zap,
@@ -146,7 +146,7 @@ export default function SettingsPage() {
       updatedAt: serverTimestamp()
     })
 
-    toast({ title: "Fee Updated", description: `Delivery fee for ${selectedRate.LOCATION} is now ${rateData["DELIVERY FEE"]}.` })
+    toast({ title: "Fee Updated", description: `Delivery fee for ${selectedRate.LOCATION} is now ₱${rateData["DELIVERY FEE"]}.` })
     setIsEditRateOpen(false)
     setSelectedRate(null)
   }
@@ -495,7 +495,7 @@ export default function SettingsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5 font-bold text-primary">
-                            <DollarSign className="h-4 w-4" />
+                            <span className="text-sm">₱</span>
                             {rate["DELIVERY FEE"]}
                           </div>
                         </TableCell>
@@ -566,9 +566,9 @@ export default function SettingsPage() {
                   </div>
                   
                   <div className="space-y-2">
-                    <Label htmlFor="fee" className="text-primary font-bold">New Delivery Fee</Label>
+                    <Label htmlFor="fee" className="text-primary font-bold">New Delivery Fee (₱)</Label>
                     <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Banknote className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input 
                         id="fee" 
                         className="pl-9 font-bold text-lg h-12 border-primary/20 focus:border-primary" 

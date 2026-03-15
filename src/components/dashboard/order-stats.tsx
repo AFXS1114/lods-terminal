@@ -1,8 +1,7 @@
-
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Package, Truck, CircleDollarSign, Clock } from "lucide-react"
+import { Package, Truck, Banknote, Clock } from "lucide-react"
 
 interface OrderStatsProps {
   activeOrders: number
@@ -31,9 +30,9 @@ export function OrderStats({ activeOrders, onlineRiders, todayRevenue, pendingBo
     },
     {
       title: "Today's Revenue",
-      value: `$${todayRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+      value: `₱${todayRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
       description: "Confirmed gross revenue",
-      icon: CircleDollarSign,
+      icon: Banknote,
       color: "text-green-600",
       bgColor: "bg-green-600/10",
     },

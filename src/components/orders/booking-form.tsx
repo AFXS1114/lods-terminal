@@ -142,6 +142,7 @@ export function BookingForm() {
             <CardDescription>Enter shipment details below or use AI to auto-fill metrics.</CardDescription>
           </div>
           <Button 
+            type="button"
             variant="outline" 
             className="border-primary text-primary hover:bg-primary/5 h-9"
             onClick={handleAiAssistant}
@@ -293,7 +294,7 @@ export function BookingForm() {
                 name="finalTotal"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-xs">Fee ($)</FormLabel>
+                    <FormLabel className="text-xs">Fee (₱)</FormLabel>
                     <FormControl>
                       <Input type="text" {...field} className="bg-background h-8 font-bold text-primary" />
                     </FormControl>
