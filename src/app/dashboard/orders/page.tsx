@@ -4,6 +4,7 @@ import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
 import { collection, query, orderBy } from "firebase/firestore"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookingForm } from "@/components/orders/booking-form"
+import { RiderTransferPopover } from "@/components/orders/rider-transfer-popover"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +26,16 @@ export default function OrdersPage() {
       case 'pending': return 'outline'
       case 'cancelled': return 'destructive'
       default: return 'outline'
+    }
+  }
+
+  const formatDate = (dateValue: any) => {
+    if (!dateValue) return 'N/A'
+    try {
+      const date = typeof dateValue.toDate === 'function' ? dateValue.toDate() : new Date(dateValue)
+      return date.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+    } catch (e) {
+      return 'Invalid Date'
     }
   }
 
@@ -57,8 +68,9 @@ export default function OrdersPage() {
                     <TableRow>
                       <TableHead>Booking ID</TableHead>
                       <TableHead>Customer</TableHead>
-                      <TableHead>Pickup</TableHead>
+                      <TableHead>Order At</TableHead>
                       <TableHead>Destination</TableHead>
+                      <TableHead>Dispatch</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="text-right">Total</TableHead>
                     </TableRow>
@@ -77,8 +89,18 @@ export default function OrdersPage() {
                             {order.bookingNo || 'LODS-XXXXX'}
                           </TableCell>
                           <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
-                          <TableCell className="max-w-[150px] truncate text-xs">{order.pickupLocation?.address || order.pickupAddress}</TableCell>
+                          <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                            {formatDate(order.createdAt)}
+                          </TableCell>
                           <TableCell className="max-w-[150px] truncate text-xs">{order.deliveryLocation?.address || order.deliveryAddress}</TableCell>
+                          <TableCell className="w-[160px]">
+                            <RiderTransferPopover 
+                              orderId={order.id} 
+                              currentRiderId={order.riderId} 
+                              currentRiderName={order.riderName} 
+                              orderStatus={order.status} 
+                            />
+                          </TableCell>
                           <TableCell>
                             <Badge variant={getStatusVariant(order.status)}>
                               {order.status}

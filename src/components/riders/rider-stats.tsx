@@ -2,7 +2,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Users, Truck, Star, TrendingUp, TrendingDown } from "lucide-react"
+import { Users, Truck, Star, TrendingUp, TrendingDown, Wallet } from "lucide-react"
 import { LineChart, Line, ResponsiveContainer } from "recharts"
 
 interface RiderStatsProps {
@@ -23,8 +23,10 @@ export function RiderStats({ riders, orders }: RiderStatsProps) {
     ? (riders.reduce((acc, curr) => acc + (curr.rating || 0), 0) / riders.length).toFixed(1)
     : "0.0"
 
+  const totalDeployedBudget = riders.reduce((acc, curr) => acc + (Number(curr.budgetOnHand) || 0), 0)
+
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card className="shadow-md border-none overflow-hidden group">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Riders Online Now</CardTitle>
@@ -78,6 +80,17 @@ export function RiderStats({ riders, orders }: RiderStatsProps) {
               </LineChart>
             </ResponsiveContainer>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-md border-none overflow-hidden">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle className="text-sm font-medium">Deployed Budget</CardTitle>
+          <Wallet className="h-4 w-4 text-primary" />
+        </CardHeader>
+        <CardContent>
+          <div className="text-3xl font-bold">₱{totalDeployedBudget.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+          <p className="text-xs text-muted-foreground mt-1">Total active on fleet</p>
         </CardContent>
       </Card>
     </div>

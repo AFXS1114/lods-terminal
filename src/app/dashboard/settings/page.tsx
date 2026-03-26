@@ -48,7 +48,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
-type UserRole = 'rider' | 'manager' | 'admin' | 'partners' | 'customer';
+type UserRole = 'rider' | 'manager' | 'admin' | 'partners' | 'customer' | 'teller';
 
 export default function SettingsPage() {
   const firestore = useFirestore()
@@ -292,6 +292,7 @@ export default function SettingsPage() {
                           <SelectContent>
                             <SelectItem value="admin">Admin</SelectItem>
                             <SelectItem value="manager">Manager</SelectItem>
+                            <SelectItem value="teller">Teller</SelectItem>
                             <SelectItem value="rider">Rider</SelectItem>
                             <SelectItem value="partners">Partner</SelectItem>
                             <SelectItem value="customer">Customer</SelectItem>

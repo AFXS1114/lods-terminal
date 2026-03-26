@@ -36,13 +36,13 @@ export default function PartnersPage() {
     return query(collection(firestore, "merchants"), orderBy("name", "asc"))
   }, [firestore])
 
-  const activeOrdersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "orders"), where("status", "in", ["pending", "in-transit", "picked-up"]))
+  const allOrdersQuery = useMemoFirebase(() => {
+    return query(collection(firestore, "orders"))
   }, [firestore])
 
   // Real-time data
   const { data: merchants, isLoading: loadingMerchants } = useCollection(merchantsQuery)
-  const { data: activeOrders } = useCollection(activeOrdersQuery)
+  const { data: allOrders } = useCollection(allOrdersQuery)
 
   const handleAddMerchant = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -75,8 +75,17 @@ export default function PartnersPage() {
     m.category?.toLowerCase().includes(searchTerm.toLowerCase())
   ) || []
 
-  const getActiveOrdersCount = (merchantId: string) => {
-    return activeOrders?.filter(o => o.merchantId === merchantId).length || 0
+  const getActiveOrdersCount = (merchantId: string, merchantName: string) => {
+    return allOrders?.filter(o => 
+      (o.merchantId === merchantId || o.merchantName === merchantName || o.merchant === merchantName) &&
+      ["pending", "in-transit", "picked-up", "assigned"].includes(o.status?.toLowerCase())
+    ).length || 0
+  }
+
+  const getLifetimeOrdersCount = (merchantId: string, merchantName: string) => {
+    return allOrders?.filter(o => 
+      o.merchantId === merchantId || o.merchantName === merchantName || o.merchant === merchantName
+    ).length || 0
   }
 
   if (loadingMerchants) {
@@ -238,12 +247,12 @@ export default function PartnersPage() {
                       <TableCell>
                         <div className="flex items-center gap-4">
                           <div className="flex flex-col">
-                            <span className="text-xs font-bold text-primary">{getActiveOrdersCount(merchant.id)}</span>
+                            <span className="text-xs font-bold text-primary">{getActiveOrdersCount(merchant.id, merchant.name)}</span>
                             <span className="text-[10px] text-muted-foreground uppercase">Active Orders</span>
                           </div>
                           <div className="h-8 w-px bg-border" />
                           <div className="flex flex-col">
-                            <span className="text-xs font-bold text-accent">0</span>
+                            <span className="text-xs font-bold text-accent">{getLifetimeOrdersCount(merchant.id, merchant.name)}</span>
                             <span className="text-[10px] text-muted-foreground uppercase">Lifetime</span>
                           </div>
                         </div>

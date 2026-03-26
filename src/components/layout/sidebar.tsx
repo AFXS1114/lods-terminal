@@ -10,7 +10,9 @@ import {
   Truck,
   Settings, 
   LogOut,
-  Map
+  Map,
+  Clock,
+  Briefcase
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -42,9 +44,21 @@ const routes = [
     color: "text-accent",
   },
   {
+    label: "Tellers (Staff)",
+    icon: Briefcase,
+    href: "/dashboard/tellers",
+    color: "text-accent",
+  },
+  {
     label: "Riders",
     icon: Truck,
     href: "/dashboard/riders",
+    color: "text-accent",
+  },
+  {
+    label: "Daily Time Records",
+    icon: Clock,
+    href: "/dashboard/dtr",
     color: "text-accent",
   },
   {

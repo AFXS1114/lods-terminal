@@ -11,7 +11,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Truck, Phone, Star, ShieldCheck, Clock, CheckCircle } from "lucide-react"
+import { Truck, Phone, Star, ShieldCheck, Clock, CheckCircle, Wallet } from "lucide-react"
 
 interface RiderDetailModalProps {
   rider: any
@@ -48,7 +48,7 @@ export function RiderDetailModal({ rider, onClose }: RiderDetailModalProps) {
             <Badge className="bg-green-500 hover:bg-green-600 px-4 py-1">{rider.status}</Badge>
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mt-8">
+          <div className="grid grid-cols-4 gap-4 mt-8">
             <div className="p-3 bg-muted/30 rounded-lg flex flex-col items-center text-center">
               <Truck className="h-4 w-4 text-primary mb-2" />
               <span className="text-[10px] text-muted-foreground uppercase font-bold">Vehicle</span>
@@ -58,6 +58,11 @@ export function RiderDetailModal({ rider, onClose }: RiderDetailModalProps) {
               <Phone className="h-4 w-4 text-primary mb-2" />
               <span className="text-[10px] text-muted-foreground uppercase font-bold">Contact</span>
               <span className="text-sm font-bold">{rider.phone || 'N/A'}</span>
+            </div>
+            <div className="p-3 bg-primary/10 rounded-lg flex flex-col items-center text-center border border-primary/20">
+              <Wallet className="h-4 w-4 text-primary mb-2" />
+              <span className="text-[10px] text-primary uppercase font-bold">Budget</span>
+              <span className="text-sm font-bold text-primary">₱{(rider.budgetOnHand || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
             <div className="p-3 bg-muted/30 rounded-lg flex flex-col items-center text-center">
               <ShieldCheck className="h-4 w-4 text-primary mb-2" />

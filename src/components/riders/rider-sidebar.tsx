@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { MapPin, Trophy, UserPlus, ArrowRight } from "lucide-react"
+import { OperationsMap } from "@/components/dashboard/operations-map"
 
 interface RiderSidebarProps {
   riders: any[]
@@ -18,23 +19,14 @@ export function RiderSidebar({ riders }: RiderSidebarProps) {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-md border-none bg-slate-900 text-white overflow-hidden h-[250px]">
-        <CardHeader className="pb-2">
+      <Card className="shadow-md border-none bg-slate-900 text-white overflow-hidden h-[300px] flex flex-col">
+        <CardHeader className="pb-2 shrink-0 z-10 bg-slate-900 relative">
           <CardTitle className="text-xs font-bold uppercase tracking-widest text-slate-400 flex items-center gap-2">
-            <MapPin className="h-3 w-3 text-primary" /> Rider Activity Heatmap
+            <MapPin className="h-3 w-3 text-primary" /> Core Fleet Map Activity
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-0 relative h-full">
-           <div className="absolute inset-0 opacity-30 pointer-events-none" 
-             style={{ backgroundImage: 'radial-gradient(hsl(var(--primary)) 0.5px, transparent 0.5px)', backgroundSize: '15px 15px' }} 
-           />
-           <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-             <div className="w-24 h-24 rounded-full border-4 border-primary/20 flex items-center justify-center relative">
-               <div className="absolute inset-0 bg-primary/10 rounded-full animate-ping" />
-               <MapPin className="h-8 w-8 text-primary" />
-             </div>
-             <p className="mt-4 text-xs font-medium text-slate-400">Live clusters tracking in progress...</p>
-           </div>
+        <CardContent className="p-0 relative flex-1 min-h-0">
+          <OperationsMap riders={riders} orders={[]} />
         </CardContent>
       </Card>
 
@@ -65,23 +57,6 @@ export function RiderSidebar({ riders }: RiderSidebarProps) {
         </CardContent>
       </Card>
 
-      <Card className="shadow-md border-primary/20 bg-primary/5 border">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-xs font-bold uppercase tracking-widest text-primary flex items-center gap-2">
-            <UserPlus className="h-3 w-3" /> Pending Registrations
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between p-2 bg-white rounded-lg border text-xs shadow-sm">
-            <div className="flex flex-col">
-              <span className="font-bold">Aleksei Volkov</span>
-              <span className="text-[10px] text-muted-foreground">Heavy Van • Docs Pending</span>
-            </div>
-            <ArrowRight className="h-3 w-3 text-primary cursor-pointer hover:translate-x-1 transition-transform" />
-          </div>
-          <p className="text-[10px] text-center text-muted-foreground">3 applications awaiting review</p>
-        </CardContent>
-      </Card>
     </div>
   )
 }
