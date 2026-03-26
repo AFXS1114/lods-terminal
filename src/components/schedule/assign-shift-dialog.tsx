@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { collection, addDoc, serverTimestamp, updateDoc, doc } from "firebase/firestore"
+import { collection, addDoc, serverTimestamp, updateDoc, doc, Timestamp } from "firebase/firestore"
 import { useFirestore } from "@/firebase"
 import { useToast } from "@/hooks/use-toast"
-import { format, isToday } from "date-fns"
+import { format, isToday, parse } from "date-fns"
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/select"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { CalendarDays, Clock, Sparkles, Sun, Sunset, Moon, Coffee, Zap } from "lucide-react"
+import { CalendarDays, Clock, Sparkles, Sun, Sunset, Moon, Coffee, Zap, Timer, AlarmClock } from "lucide-react"
 
 const SHIFT_PRESETS = [
   {
@@ -65,6 +65,8 @@ const SHIFT_PRESETS = [
   },
 ]
 
+type AutoStartMode = "now" | "scheduled"
+
 interface AssignShiftDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -85,6 +87,7 @@ export function AssignShiftDialog({
   const [customStart, setCustomStart] = useState("")
   const [customEnd, setCustomEnd] = useState("")
   const [notes, setNotes] = useState("")
+  const [autoStartMode, setAutoStartMode] = useState<AutoStartMode>("now")
   const [isSaving, setIsSaving] = useState(false)
 
   const firestore = useFirestore()
@@ -100,6 +103,21 @@ export function AssignShiftDialog({
 
   const isAssigningToday = date ? isToday(date) : false
   const isActiveShift = selectedShift && selectedShift !== "Rest Day"
+
+  // Build the timeIn timestamp based on the chosen auto-start mode
+  const buildTimeIn = () => {
+    if (autoStartMode === "now" || !shiftStart || !date) {
+      // Option 1: use Firestore server timestamp (now)
+      return serverTimestamp()
+    }
+    // Option 2: use today's date + the shift start time string (e.g. "08:00")
+    try {
+      const parsed = parse(shiftStart, "HH:mm", new Date(date))
+      return Timestamp.fromDate(parsed)
+    } catch {
+      return serverTimestamp()
+    }
+  }
 
   const handleSave = async () => {
     if (!selectedUserId || !selectedShift || !date) return
@@ -124,11 +142,13 @@ export function AssignShiftDialog({
         createdAt: serverTimestamp(),
       })
 
-      // 2. If assigning today AND it's an active shift (not Rest Day) → auto Time In via DTR
+      // 2. If today + active shift → auto Time In via DTR
       if (isAssigningToday && isActiveShift) {
         const dtrCollection = user.role === "rider" ? "riderDTR" : "tellerDTR"
+        const timeInValue = buildTimeIn()
+
         const dtrPayload: Record<string, any> = {
-          timeIn: serverTimestamp(),
+          timeIn: timeInValue,
           timeOut: null,
           date: dateStr,
           shiftLabel: selectedShift,
@@ -136,7 +156,6 @@ export function AssignShiftDialog({
           shiftEnd: shiftEnd,
         }
 
-        // Rider DTR field names
         if (user.role === "rider") {
           dtrPayload.riderId = user.id
           dtrPayload.riderName = user.name
@@ -147,18 +166,22 @@ export function AssignShiftDialog({
 
         const dtrRef = await addDoc(collection(firestore, dtrCollection), dtrPayload)
 
-        // Update user status → online
         await updateDoc(doc(firestore, "users", user.id), {
           status: "online",
-          lastTimeIn: serverTimestamp(),
+          lastTimeIn: timeInValue,
           activeDtrId: dtrRef.id,
           cashAdvance: 0,
           ...(user.role === "rider" ? { budgetOnHand: 0 } : {}),
         })
 
+        const modeLabel =
+          autoStartMode === "now"
+            ? "clocked in immediately"
+            : `timer set to ${shiftStart}`
+
         toast({
           title: "Shift Assigned & Timer Started ⚡",
-          description: `${user.name} is now clocked in for the ${selectedShift} shift.`,
+          description: `${user.name} ${modeLabel} for the ${selectedShift} shift.`,
         })
       } else {
         toast({
@@ -167,12 +190,13 @@ export function AssignShiftDialog({
         })
       }
 
-      // Reset form
+      // Reset
       setSelectedUserId("")
       setSelectedShift("")
       setCustomStart("")
       setCustomEnd("")
       setNotes("")
+      setAutoStartMode("now")
       onOpenChange(false)
     } catch (e) {
       toast({
@@ -204,12 +228,68 @@ export function AssignShiftDialog({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Today badge — live timer hint */}
-          {isAssigningToday && (
+          {/* Today + active shift: show auto-start mode selector */}
+          {isAssigningToday && isActiveShift && (
+            <div className="mt-3 space-y-2">
+              <p className="text-[11px] text-white/60 font-bold uppercase tracking-widest">
+                Auto-Start Mode
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                {/* Option 1 */}
+                <button
+                  type="button"
+                  onClick={() => setAutoStartMode("now")}
+                  className={`flex items-start gap-2.5 p-3 rounded-xl border-2 text-left transition-all ${
+                    autoStartMode === "now"
+                      ? "bg-white/20 border-white/60 shadow-sm"
+                      : "bg-white/5 border-white/20 hover:bg-white/10"
+                  }`}
+                >
+                  <div className={`mt-0.5 h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${autoStartMode === "now" ? "bg-yellow-400/30" : "bg-white/10"}`}>
+                    <Zap className={`h-3.5 w-3.5 ${autoStartMode === "now" ? "text-yellow-300" : "text-white/50"}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-bold ${autoStartMode === "now" ? "text-white" : "text-white/60"}`}>
+                      Start Now
+                    </p>
+                    <p className="text-[10px] text-white/40 leading-tight mt-0.5">
+                      Clock in at the current time
+                    </p>
+                  </div>
+                </button>
+
+                {/* Option 2 */}
+                <button
+                  type="button"
+                  onClick={() => setAutoStartMode("scheduled")}
+                  className={`flex items-start gap-2.5 p-3 rounded-xl border-2 text-left transition-all ${
+                    autoStartMode === "scheduled"
+                      ? "bg-white/20 border-white/60 shadow-sm"
+                      : "bg-white/5 border-white/20 hover:bg-white/10"
+                  }`}
+                >
+                  <div className={`mt-0.5 h-7 w-7 rounded-lg flex items-center justify-center shrink-0 ${autoStartMode === "scheduled" ? "bg-sky-400/30" : "bg-white/10"}`}>
+                    <AlarmClock className={`h-3.5 w-3.5 ${autoStartMode === "scheduled" ? "text-sky-300" : "text-white/50"}`} />
+                  </div>
+                  <div>
+                    <p className={`text-xs font-bold ${autoStartMode === "scheduled" ? "text-white" : "text-white/60"}`}>
+                      Start at Shift Time
+                    </p>
+                    <p className="text-[10px] text-white/40 leading-tight mt-0.5">
+                      {shiftStart ? `Timer set to ${shiftStart}` : "Use shift start time"}
+                    </p>
+                  </div>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Plain today banner (before shift is selected) */}
+          {isAssigningToday && !isActiveShift && (
             <div className="mt-3 flex items-center gap-2 bg-white/15 rounded-xl px-3 py-2">
-              <Zap className="h-4 w-4 text-yellow-300 shrink-0" />
+              <Timer className="h-4 w-4 text-yellow-300 shrink-0" />
               <p className="text-[12px] text-white/90 font-medium">
-                Today's shift — assigning will <strong className="text-yellow-300">auto-start their DTR timer</strong> immediately.
+                Today's date — assigning a shift will <strong className="text-yellow-300">auto-start the DTR timer</strong>.
               </p>
             </div>
           )}
@@ -345,15 +425,13 @@ export function AssignShiftDialog({
               onClick={handleSave}
             >
               {isAssigningToday && isActiveShift ? (
-                <>
-                  <Zap className="h-4 w-4" />
-                  {isSaving ? "Clocking In..." : "Assign & Clock In"}
-                </>
+                autoStartMode === "now" ? (
+                  <><Zap className="h-4 w-4" />{isSaving ? "Clocking In..." : "Assign & Start Now"}</>
+                ) : (
+                  <><AlarmClock className="h-4 w-4" />{isSaving ? "Scheduling..." : `Assign & Start at ${shiftStart || "Shift Time"}`}</>
+                )
               ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  {isSaving ? "Saving..." : "Assign Shift"}
-                </>
+                <><Sparkles className="h-4 w-4" />{isSaving ? "Saving..." : "Assign Shift"}</>
               )}
             </Button>
           </div>
