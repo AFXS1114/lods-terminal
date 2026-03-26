@@ -12,7 +12,8 @@ import {
   LogOut,
   Map,
   Clock,
-  Briefcase
+  Briefcase,
+  CalendarDays
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -59,6 +60,12 @@ const routes = [
     label: "Daily Time Records",
     icon: Clock,
     href: "/dashboard/dtr",
+    color: "text-accent",
+  },
+  {
+    label: "Work Schedule",
+    icon: CalendarDays,
+    href: "/dashboard/schedule",
     color: "text-accent",
   },
   {

@@ -48,7 +48,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 import { RiderDetailModal } from "./rider-detail-modal"
-import { RiderEditModal } from "./rider-edit-modal"
+import { RiderEditSheet } from "./rider-edit-sheet"
 
 interface RiderListProps {
   riders: any[]
@@ -493,7 +493,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
           onClose={() => setSelectedRider(null)} 
         />
       )}
-      <RiderEditModal 
+      <RiderEditSheet 
         rider={editingRider}
         open={!!editingRider}
         onOpenChange={(open) => !open && setEditingRider(null)}
