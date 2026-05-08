@@ -18,8 +18,7 @@ export default function MissionControlPage() {
 
   const { data: riders = [], isLoading: ridersLoading } = useSupabaseCollection("users", {
     filter: [
-      { column: "role", operator: "==", value: "rider" },
-      { column: "status", operator: "==", value: "online" }
+      { column: "role", operator: "==", value: "rider" }
     ]
   })
 

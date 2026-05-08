@@ -29,10 +29,14 @@ export function OperationsMap({ riders, orders }: OperationsMapProps) {
   // Create custom icons using Lucide components
   const createRiderIcon = (rider: any) => {
     if (!L) return null
+    const isOnline = rider.status === 'online'
+    const colorClass = isOnline ? 'bg-primary' : 'bg-slate-500 opacity-80'
+    const pulseClass = isOnline ? 'animate-in zoom-in' : ''
+    
     return L.divIcon({
       className: 'custom-div-icon',
       html: `
-        <div class="p-1 bg-primary rounded-full shadow-lg border-2 border-white animate-in zoom-in">
+        <div class="p-1 ${colorClass} rounded-full shadow-lg border-2 border-white ${pulseClass}">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
         </div>
       `,
@@ -58,10 +62,10 @@ export function OperationsMap({ riders, orders }: OperationsMapProps) {
   // Determine map center
   const defaultCenter: [number, number] = [13.0, 123.0] // Generic center, will be updated by fleet data
   const center = useMemo(() => {
-    const validRiders = riders.filter(r => r.currentLatitude && r.currentLongitude)
+    const validRiders = riders.filter(r => r.latitude && r.longitude)
     if (validRiders.length > 0) {
-      const lat = validRiders.reduce((acc, r) => acc + r.currentLatitude, 0) / validRiders.length
-      const lng = validRiders.reduce((acc, r) => acc + r.currentLongitude, 0) / validRiders.length
+      const lat = validRiders.reduce((acc, r) => acc + r.latitude, 0) / validRiders.length
+      const lng = validRiders.reduce((acc, r) => acc + r.longitude, 0) / validRiders.length
       return [lat, lng] as [number, number]
     }
     return defaultCenter
@@ -90,17 +94,17 @@ export function OperationsMap({ riders, orders }: OperationsMapProps) {
 
         {/* Real-time Rider Markers */}
         {riders.map((rider) => (
-          rider.currentLatitude && rider.currentLongitude && (
+          rider.latitude && rider.longitude && (
             <Marker 
               key={rider.id} 
-              position={[rider.currentLatitude, rider.currentLongitude]}
+              position={[rider.latitude, rider.longitude]}
               icon={createRiderIcon(rider)}
             >
               <Popup>
                 <div className="p-1">
                   <p className="font-bold text-sm">{rider.name}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase">{rider.vehicleType} • {rider.status}</p>
-                  <p className="text-[10px] mt-1 italic text-primary">Last seen: {rider.locationUpdateTime ? new Date(rider.locationUpdateTime).toLocaleTimeString() : 'Recent'}</p>
+                  <p className="text-[10px] text-muted-foreground uppercase">{rider.vehicleType || rider.vehicle_type} • {rider.status}</p>
+                  <p className="text-[10px] mt-1 italic text-primary">Last seen: {rider.updated_at ? new Date(rider.updated_at).toLocaleTimeString() : 'Recent'}</p>
                 </div>
               </Popup>
             </Marker>
@@ -135,10 +139,10 @@ export function OperationsMap({ riders, orders }: OperationsMapProps) {
         <div className="bg-white/90 backdrop-blur-sm p-3 rounded-lg border shadow-lg space-y-2 pointer-events-auto">
           <div className="flex items-center justify-between text-[10px] font-bold uppercase text-muted-foreground">
             <span className="flex items-center gap-1"><Navigation className="h-3 w-3 text-primary" /> Live Fleet Sync</span>
-            <span className="text-primary">{riders.filter(r => r.currentLatitude).length} Active Assets</span>
+            <span className="text-primary">{riders.filter(r => r.latitude).length} Active Assets</span>
           </div>
           <div className="flex gap-2">
-            {riders.filter(r => r.currentLatitude).map((r, i) => (
+            {riders.filter(r => r.latitude).map((r, i) => (
               <div key={i} className="h-1.5 flex-1 bg-primary/20 rounded-full overflow-hidden">
                 <div className="h-full bg-primary animate-pulse" />
               </div>
