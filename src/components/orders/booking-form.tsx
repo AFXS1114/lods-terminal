@@ -67,17 +67,6 @@ export function BookingForm() {
     orderBy: { column: "location", ascending: true }
   })
 
-  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([])
-  const [showSuggestions, setShowSuggestions] = useState(false)
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
-
-  const merchantId = form.watch("merchantId")
-
-  const { data: menuItems, isLoading: loadingMenu } = useSupabaseCollection("menu_items", {
-    filter: merchantId ? { column: "merchant_id", operator: "==", value: merchantId } : undefined,
-    orderBy: { column: "name", ascending: true }
-  })
-
   const form = useForm<z.infer<typeof pabiliSchema>>({
     resolver: zodResolver(pabiliSchema),
     defaultValues: {
@@ -90,6 +79,17 @@ export function BookingForm() {
       riderId: "",
       deliveryFee: 49,
     },
+  })
+
+  const [addressSuggestions, setAddressSuggestions] = useState<any[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const merchantId = form.watch("merchantId")
+
+  const { data: menuItems, isLoading: loadingMenu } = useSupabaseCollection("menu_items", {
+    filter: merchantId ? { column: "merchant_id", operator: "==", value: merchantId } : undefined,
+    orderBy: { column: "name", ascending: true }
   })
 
   const { fields, append, remove } = useFieldArray({
