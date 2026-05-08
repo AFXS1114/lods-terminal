@@ -104,7 +104,7 @@ export function OperationsMap({ riders, orders }: OperationsMapProps) {
                 <div className="p-1">
                   <p className="font-bold text-sm">{rider.name}</p>
                   <p className="text-[10px] text-muted-foreground uppercase">{rider.vehicleType || rider.vehicle_type} • {rider.status}</p>
-                  <p className="text-[10px] mt-1 italic text-primary">Last seen: {rider.updated_at ? new Date(rider.updated_at).toLocaleTimeString() : 'Recent'}</p>
+                  <p className="text-[10px] mt-1 italic text-primary">Last seen: {rider.gps_timestamp ? new Date(rider.gps_timestamp).toLocaleTimeString() : (rider.updated_at ? new Date(rider.updated_at).toLocaleTimeString() : 'Recent')}</p>
                 </div>
               </Popup>
             </Marker>
