@@ -1,0 +1,197 @@
+[
+  {
+    "Location": "A. Bonifacio (Tinurilan)",
+    "Distance": "7 km",
+    "Delivery Fee": "₱ 105"
+  },
+  {
+    "Location": "Abad Santos (Kambal)",
+    "Distance": "10 km",
+    "Delivery Fee": "₱ 150"
+  },
+  {
+    "Location": "Aguinaldo (Lipata Dako)",
+    "Distance": "21 km",
+    "Delivery Fee": "₱ 350"
+  },
+  {
+    "Location": "Antipolo via inararan road",
+    "Distance": "8 km",
+    "Delivery Fee": "₱ 120"
+  },
+  {
+    "Location": "Aquino (Imelda)",
+    "Distance": ".30 km",
+    "Delivery Fee": "₱ 39"
+  },
+  {
+    "Location": "Beguin",
+    "Distance": "8 km",
+    "Delivery Fee": "₱ 120"
+  },
+  {
+    "Location": "Beguin Daan",
+    "Distance": "11 km",
+    "Delivery Fee": "₱ 165"
+  },
+  {
+    "Location": "Bical",
+    "Distance": "14 km",
+    "Delivery Fee": "₱ 210"
+  },
+  {
+    "Location": "Biton beach",
+    "Distance": "19 km",
+    "Delivery Fee": "₱ 345"
+  },
+  {
+    "Location": "Bonga",
+    "Distance": "17 km",
+    "Delivery Fee": "₱ 255"
+  },
+  {
+    "Location": "Butag",
+    "Distance": "14 km",
+    "Delivery Fee": "₱ 220"
+  },
+  {
+    "Location": "Butag National High School",
+    "Distance": "16 km",
+    "Delivery Fee": "₱ 260"
+  },
+  {
+    "Location": "Cadandanan",
+    "Distance": "13 km",
+    "Delivery Fee": "₱ 195"
+  },
+  {
+    "Location": "Calomagon",
+    "Distance": "7 km",
+    "Delivery Fee": "₱ 105"
+  },
+  {
+    "Location": "Calpi",
+    "Distance": "12 km",
+    "Delivery Fee": "₱ 220"
+  },
+  {
+    "Location": "Cocok-Cabitan",
+    "Distance": "17 km",
+    "Delivery Fee": "₱ 270"
+  },
+  {
+    "Location": "Daganas (via beguin rd.)",
+    "Distance": "13 km",
+    "Delivery Fee": "₱ 210"
+  },
+  {
+    "Location": "Danao (via Calomagon rd)",
+    "Distance": "16 km",
+    "Delivery Fee": "₱ 300"
+  },
+  {
+    "Location": "Dolos",
+    "Distance": "16 km",
+    "Delivery Fee": "₱ 270"
+  },
+  {
+    "Location": "E. Quirino (Pinangomhan)",
+    "Distance": "9 km",
+    "Delivery Fee": "₱ 150"
+  },
+  {
+    "Location": "Eco Park/22nd infantry",
+    "Distance": "8 km",
+    "Delivery Fee": "₱ 120"
+  },
+  {
+    "Location": "Fabrica",
+    "Distance": "5 km",
+    "Delivery Fee": "₱ 75"
+  },
+  {
+    "Location": "G. Del Pilar (Tanga)",
+    "Distance": "8 km",
+    "Delivery Fee": "₱ 120"
+  },
+  {
+    "Location": "Gate",
+    "Distance": "13 km",
+    "Delivery Fee": "₱ 220"
+  },
+  {
+    "Location": "Inararan (via j.p. laurel)",
+    "Distance": "6 km",
+    "Delivery Fee": "₱ 96"
+  },
+  {
+    "Location": "J. Gerona (Biton)",
+    "Distance": "18 km",
+    "Delivery Fee": "₱ 310"
+  },
+  {
+    "Location": "Kapehan sa Bulod",
+    "Distance": "18 km",
+    "Delivery Fee": "₱ 270"
+  },
+  {
+    "Location": "Layuan nature park/nido verde",
+    "Distance": "5 km",
+    "Delivery Fee": "₱ 75"
+  },
+  {
+    "Location": "Sitio Angas",
+    "Distance": "15 km",
+    "Delivery Fee": "₱ 240"
+  },
+  {
+    "Location": "Sitio Bliss",
+    "Distance": "4 km",
+    "Delivery Fee": "₱ 65"
+  },
+  {
+    "Location": "Sitio Buntay",
+    "Distance": "5 km",
+    "Delivery Fee": "₱ 85"
+  },
+  {
+    "Location": "Sitio Lumacao",
+    "Distance": "16 km",
+    "Delivery Fee": "₱ 260"
+  },
+  {
+    "Location": "Sitio Pinaradan",
+    "Distance": "9 km",
+    "Delivery Fee": "₱ 85"
+  },
+  {
+    "Location": "Sitio Sabang",
+    "Distance": "13 km",
+    "Delivery Fee": "₱ 200"
+  },
+  {
+    "Location": "Sitio Uyango",
+    "Distance": "2 km",
+    "Delivery Fee": "₱ 45"
+  },
+  {
+    "Location": "Sitio layuan",
+    "Distance": "3 km",
+    "Delivery Fee": "₱ 50"
+  },
+  {
+    "Location": "Via calomagon rd.",
+    "Distance": "9 km",
+    "Delivery Fee": "₱ 135"
+  },
+  {
+    "Location": "Via calomagon road",
+    "Distance": "10 km",
+    "Delivery Fee": "₱ 150"
+  },
+  {
+    "Location": "Via polot rd.",
+    "Distance": "14 km",
+    "Delivery Fee": "₱ 230"
+  }
+]

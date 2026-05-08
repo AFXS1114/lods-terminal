@@ -19,8 +19,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { doc, updateDoc } from "firebase/firestore"
-import { useFirestore } from "@/firebase"
+import { supabase } from "@/supabase/config"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Settings, UserCircle, Truck, Phone, CheckCircle2 } from "lucide-react"
 
@@ -31,7 +30,7 @@ interface RiderEditModalProps {
 }
 
 export function RiderEditModal({ rider, open, onOpenChange }: RiderEditModalProps) {
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
   
   const [isSaving, setIsSaving] = useState(false)
@@ -48,7 +47,7 @@ export function RiderEditModal({ rider, open, onOpenChange }: RiderEditModalProp
       setFormData({
         name: rider.name || "",
         phone: rider.phone || "",
-        vehicleType: rider.vehicleType || "Bike",
+        vehicleType: rider.vehicle_type || "Bike",
         status: rider.status || "offline"
       })
     }
@@ -59,12 +58,12 @@ export function RiderEditModal({ rider, open, onOpenChange }: RiderEditModalProp
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      await updateDoc(doc(firestore, "users", rider.id), {
+      await supabase.from("users").update({
         name: formData.name,
         phone: formData.phone,
-        vehicleType: formData.vehicleType,
+        vehicle_type: formData.vehicleType,
         status: formData.status
-      })
+      }).eq('id', rider.id)
       toast({
         title: "Profile Updated",
         description: `${formData.name}'s profile has been successfully updated on the network.`

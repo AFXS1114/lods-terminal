@@ -2,8 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth"
-import { useAuth } from "@/firebase"
+import { supabase } from "@/supabase/config"
 import { Loader2, ArrowRight, ShieldCheck, Truck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,20 +12,24 @@ import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState("admin@lods.com")
+  const [password, setPassword] = useState("123123")
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
-  const auth = useAuth()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
-      await signInWithEmailAndPassword(auth, email, password)
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
+      if (error) throw error
+
       toast({
         title: "Access Granted",
         description: "Initializing secure terminal link...",
@@ -44,14 +47,19 @@ export default function LoginPage() {
 
   const handleGoogleLogin = async () => {
     setIsGoogleLoading(true)
-    const provider = new GoogleAuthProvider()
     try {
-      await signInWithPopup(auth, provider)
-      toast({
-        title: "Google Access Granted",
-        description: "Synchronizing profile with terminal...",
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard/mission-control`
+        }
       })
-      router.push("/dashboard/mission-control")
+      if (error) throw error
+      
+      toast({
+        title: "Google Access Initiated",
+        description: "Redirecting to secure login...",
+      })
     } catch (error: any) {
       toast({
         title: "Authentication Failed",

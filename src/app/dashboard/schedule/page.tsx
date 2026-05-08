@@ -2,8 +2,7 @@
 
 import { useState, useMemo } from "react"
 import { startOfWeek } from "date-fns"
-import { collection, query, where } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useSupabaseCollection } from "@/supabase/use-collection"
 import { Loader2 } from "lucide-react"
 import { WeeklyNav } from "@/components/schedule/weekly-nav"
 import { ScheduleStats } from "@/components/schedule/schedule-stats"
@@ -15,17 +14,12 @@ export default function SchedulePage() {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   )
 
-  const firestore = useFirestore()
-
-  // All staff: riders + tellers
-  const ridersQuery = useMemoFirebase(
-    () => query(collection(firestore, "users"), where("role", "==", "rider")),
-    [firestore]
-  )
-  const tellersQuery = useMemoFirebase(
-    () => query(collection(firestore, "users"), where("role", "==", "teller")),
-    [firestore]
-  )
+  const { data: riders, isLoading: ridersLoading } = useSupabaseCollection("users", {
+    filter: { column: "role", operator: "==", value: "rider" }
+  })
+  const { data: tellers, isLoading: tellersLoading } = useSupabaseCollection("users", {
+    filter: { column: "role", operator: "==", value: "teller" }
+  })
 
   // Current week's schedules
   const weekStartStr = format(weekStart, "yyyy-MM-dd")
@@ -33,19 +27,12 @@ export default function SchedulePage() {
   weekEndDate.setDate(weekEndDate.getDate() + 6)
   const weekEndStr = format(weekEndDate, "yyyy-MM-dd")
 
-  const schedulesQuery = useMemoFirebase(
-    () =>
-      query(
-        collection(firestore, "schedules"),
-        where("date", ">=", weekStartStr),
-        where("date", "<=", weekEndStr)
-      ),
-    [firestore, weekStartStr, weekEndStr]
-  )
-
-  const { data: riders, isLoading: ridersLoading } = useCollection(ridersQuery)
-  const { data: tellers, isLoading: tellersLoading } = useCollection(tellersQuery)
-  const { data: schedules, isLoading: schedulesLoading } = useCollection(schedulesQuery)
+  const { data: schedules, isLoading: schedulesLoading } = useSupabaseCollection("schedules", {
+    filter: [
+      { column: "date", operator: ">=", value: weekStartStr },
+      { column: "date", operator: "<=", value: weekEndStr }
+    ]
+  })
 
   const staff = useMemo(() => [...(riders || []), ...(tellers || [])], [riders, tellers])
 

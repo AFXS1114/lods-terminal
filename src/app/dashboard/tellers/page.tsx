@@ -1,18 +1,13 @@
 "use client"
 
-import { collection, query, where } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useSupabaseCollection } from "@/supabase/use-collection"
 import { TellerList } from "@/components/tellers/teller-list"
 import { Loader2 } from "lucide-react"
 
 export default function TellersPage() {
-  const firestore = useFirestore()
-
-  const tellersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "users"), where("role", "==", "teller"))
-  }, [firestore])
-
-  const { data: tellers, isLoading } = useCollection(tellersQuery)
+  const { data: tellers, isLoading } = useSupabaseCollection("users", {
+    filter: { column: "role", operator: "==", value: "teller" }
+  })
 
   if (isLoading) {
     return (

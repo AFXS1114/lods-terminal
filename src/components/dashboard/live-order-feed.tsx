@@ -42,11 +42,13 @@ export function LiveOrderFeed({ orders }: LiveOrderFeedProps) {
             orders.map((order) => (
               <TableRow key={order.id} className="cursor-pointer hover:bg-muted/30">
                 <TableCell className="font-mono text-xs text-primary font-bold">
-                  {order.bookingNo || 'N/A'}
+                  {order.booking_no || order.bookingNo || 'N/A'}
                 </TableCell>
-                <TableCell className="text-sm">{order.customerName}</TableCell>
+                <TableCell className="text-sm">
+                  {order.customer_name || order.customerName}
+                </TableCell>
                 <TableCell className="text-sm text-muted-foreground">
-                  {order.merchant || 'Generic'}
+                  {order.merchant_name || order.merchant || 'Generic'}
                 </TableCell>
                 <TableCell className="text-right">
                   <Badge variant={getStatusVariant(order.status)}>

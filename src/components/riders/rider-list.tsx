@@ -2,8 +2,7 @@
 "use client"
 
 import { useState } from "react"
-import { doc, updateDoc, increment, serverTimestamp, collection, addDoc } from "firebase/firestore"
-import { useFirestore } from "@/firebase"
+import { supabase } from "@/supabase/config"
 import { useToast } from "@/hooks/use-toast"
 import { 
   Table, 
@@ -62,7 +61,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
   const [selectedRider, setSelectedRider] = useState<any | null>(null)
   const [editingRider, setEditingRider] = useState<any | null>(null)
   
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
   
   const [addingBudgetFor, setAddingBudgetFor] = useState<string | null>(null)
@@ -75,18 +74,21 @@ export function RiderList({ riders, orders }: RiderListProps) {
     try {
       const rider = riders.find(r => r.id === riderId)
 
-      await updateDoc(doc(firestore, "users", riderId), {
-        budgetOnHand: increment(Number(budgetAmount))
+      await supabase.rpc('increment_column', {
+        table_name: 'users',
+        column_name: 'budget_on_hand',
+        row_id: riderId,
+        amount: Number(budgetAmount)
       })
 
       if (rider) {
-        await addDoc(collection(firestore, "cashAdvances"), {
-          userId: rider.id,
-          userName: rider.name,
+        await supabase.from('cash_advances').insert({
+          user_id: rider.id,
+          user_name: rider.name,
           role: "rider",
           amount: Number(budgetAmount),
           type: "budget_allocation",
-          timestamp: serverTimestamp(),
+          timestamp: new Date().toISOString(),
           date: new Date().toISOString().split('T')[0]
         })
       }
@@ -102,7 +104,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
   const filteredRiders = riders.filter(rider => {
     const matchesSearch = rider.name?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesStatus = statusFilter === "all" || rider.status === statusFilter
-    const matchesVehicle = vehicleFilter === "all" || rider.vehicleType === vehicleFilter
+    const matchesVehicle = vehicleFilter === "all" || rider.vehicle_type === vehicleFilter
     return matchesSearch && matchesStatus && matchesVehicle
   })
 
@@ -115,18 +117,21 @@ export function RiderList({ riders, orders }: RiderListProps) {
     try {
       const rider = riders.find(r => r.id === riderId)
 
-      await updateDoc(doc(firestore, "users", riderId), {
-        cashAdvance: increment(Number(advanceAmount))
+      await supabase.rpc('increment_column', {
+        table_name: 'users',
+        column_name: 'cash_advance',
+        row_id: riderId,
+        amount: Number(advanceAmount)
       })
 
       if (rider) {
-        await addDoc(collection(firestore, "cashAdvances"), {
-          userId: rider.id,
-          userName: rider.name,
+        await supabase.from('cash_advances').insert({
+          user_id: rider.id,
+          user_name: rider.name,
           role: "rider",
           amount: Number(advanceAmount),
           type: "cash_advance",
-          timestamp: serverTimestamp(),
+          timestamp: new Date().toISOString(),
           date: new Date().toISOString().split('T')[0]
         })
       }
@@ -141,20 +146,25 @@ export function RiderList({ riders, orders }: RiderListProps) {
 
   const handleTimeIn = async (rider: any) => {
     try {
-      const dtrRef = await addDoc(collection(firestore, "riderDTR"), {
-        riderId: rider.id,
-        riderName: rider.name,
-        timeIn: serverTimestamp(),
-        timeOut: null,
+      const { data: dtrData, error: dtrError } = await supabase.from('dtr').insert({
+        user_id: rider.id,
+        user_name: rider.name,
+        role: "rider",
+        time_in: new Date().toISOString(),
+        time_out: null,
         date: new Date().toISOString().split('T')[0]
-      })
-      await updateDoc(doc(firestore, "users", rider.id), {
+      }).select().single()
+
+      if (dtrError) throw dtrError
+
+      await supabase.from('users').update({
         status: "online",
-        lastTimeIn: serverTimestamp(), // keeping for fallback/frontend
-        activeDtrId: dtrRef.id,
-        cashAdvance: 0,
-        budgetOnHand: 0
-      })
+        last_time_in: new Date().toISOString(),
+        active_dtr_id: dtrData.id,
+        cash_advance: 0,
+        budget_on_hand: 0
+      }).eq('id', rider.id)
+
       toast({ title: "Asset Online", description: `${rider.name} is now deployed on duty.` })
     } catch (e) {
       toast({ title: "Error", description: "Failed to time in.", variant: "destructive" })
@@ -163,32 +173,33 @@ export function RiderList({ riders, orders }: RiderListProps) {
 
   const handleEndDuty = async (rider: any) => {
     try {
-      if (rider.activeDtrId) {
-        await updateDoc(doc(firestore, "riderDTR", rider.activeDtrId), {
-          timeOut: serverTimestamp(),
-          finalCashAdvance: rider.cashAdvance || 0,
-          finalBudget: rider.budgetOnHand || 0
-        })
-      } else if (rider.lastTimeIn) {
-        // Fallback if they timed in before this update
-        await addDoc(collection(firestore, "riderDTR"), {
-          riderId: rider.id,
-          riderName: rider.name,
-          timeIn: rider.lastTimeIn,
-          timeOut: serverTimestamp(),
+      if (rider.active_dtr_id) {
+        await supabase.from('dtr').update({
+          time_out: new Date().toISOString(),
+          final_cash_advance: rider.cash_advance || 0,
+          final_budget: rider.budget_on_hand || 0
+        }).eq('id', rider.active_dtr_id)
+      } else if (rider.last_time_in) {
+        await supabase.from('dtr').insert({
+          user_id: rider.id,
+          user_name: rider.name,
+          role: "rider",
+          time_in: rider.last_time_in,
+          time_out: new Date().toISOString(),
           date: new Date().toISOString().split('T')[0],
-          finalCashAdvance: rider.cashAdvance || 0,
-          finalBudget: rider.budgetOnHand || 0
+          final_cash_advance: rider.cash_advance || 0,
+          final_budget: rider.budget_on_hand || 0
         })
       }
       
-      await updateDoc(doc(firestore, "users", rider.id), {
+      await supabase.from('users').update({
         status: "offline",
-        lastTimeIn: null,
-        activeDtrId: null,
-        budgetOnHand: 0,
-        cashAdvance: 0
-      })
+        last_time_in: null,
+        active_dtr_id: null,
+        budget_on_hand: 0,
+        cash_advance: 0
+      }).eq('id', rider.id)
+
       toast({ title: "Duty Terminated", description: `${rider.name} clocked out. Remaining budget and advances wiped.` })
     } catch (e) {
       toast({ title: "Error", description: "Failed to end duty.", variant: "destructive" })
@@ -201,30 +212,31 @@ export function RiderList({ riders, orders }: RiderListProps) {
     try {
       const activeRiders = riders.filter(r => r.status && r.status !== "offline")
       for (const rider of activeRiders) {
-        if (rider.activeDtrId) {
-          await updateDoc(doc(firestore, "riderDTR", rider.activeDtrId), {
-            timeOut: serverTimestamp(),
-            finalCashAdvance: rider.cashAdvance || 0,
-            finalBudget: rider.budgetOnHand || 0
-          })
-        } else if (rider.lastTimeIn) {
-          await addDoc(collection(firestore, "riderDTR"), {
-            riderId: rider.id,
-            riderName: rider.name,
-            timeIn: rider.lastTimeIn,
-            timeOut: serverTimestamp(),
+        if (rider.active_dtr_id) {
+          await supabase.from('dtr').update({
+            time_out: new Date().toISOString(),
+            final_cash_advance: rider.cash_advance || 0,
+            final_budget: rider.budget_on_hand || 0
+          }).eq('id', rider.active_dtr_id)
+        } else if (rider.last_time_in) {
+          await supabase.from('dtr').insert({
+            user_id: rider.id,
+            user_name: rider.name,
+            role: "rider",
+            time_in: rider.last_time_in,
+            time_out: new Date().toISOString(),
             date: new Date().toISOString().split('T')[0],
-            finalCashAdvance: rider.cashAdvance || 0,
-            finalBudget: rider.budgetOnHand || 0
+            final_cash_advance: rider.cash_advance || 0,
+            final_budget: rider.budget_on_hand || 0
           })
         }
-        await updateDoc(doc(firestore, "users", rider.id), {
+        await supabase.from('users').update({
           status: "offline",
-          lastTimeIn: null,
-          activeDtrId: null,
-          budgetOnHand: 0,
-          cashAdvance: 0
-        })
+          last_time_in: null,
+          active_dtr_id: null,
+          budget_on_hand: 0,
+          cash_advance: 0
+        }).eq('id', rider.id)
       }
       toast({ title: "Fleet Reset Complete", description: `Successfully stood down ${activeRiders.length} assets.` })
     } catch (e) {
@@ -334,7 +346,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
-                      <AvatarImage src={rider.avatar} />
+                      <AvatarImage src={rider.avatar_url} />
                       <AvatarFallback className="bg-primary/10 text-primary font-bold">{rider.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
@@ -372,7 +384,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center">
-                    <span className="font-bold text-sm text-primary">₱{(rider.budgetOnHand || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className="font-bold text-sm text-primary">₱{(rider.budget_on_hand || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     {rider.status && rider.status !== 'offline' && (
                       <Popover open={addingBudgetFor === rider.id} onOpenChange={(open) => {
                         if (open) {
@@ -411,7 +423,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center">
-                    <span className={`font-bold text-sm ${rider.cashAdvance > 0 ? 'text-accent' : 'text-primary'}`}>₱{(rider.cashAdvance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                    <span className={`font-bold text-sm ${rider.cash_advance > 0 ? 'text-accent' : 'text-primary'}`}>₱{(rider.cash_advance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     {rider.status && rider.status !== 'offline' && (
                       <Popover open={allocatingAdvanceFor === rider.id} onOpenChange={(open) => {
                         if (open) { setAllocatingAdvanceFor(rider.id); setAdvanceAmount("") } 
@@ -453,7 +465,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
                     <span className="text-xs font-medium">{getRiderLoad(rider.id)} active</span>
                   </div>
                 </TableCell>
-                <TableCell className="text-sm font-medium">{rider.vehicleType || 'Bike'}</TableCell>
+                <TableCell className="text-sm font-medium">{rider.vehicle_type || 'Bike'}</TableCell>
                 <TableCell className="text-right">
                   <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">

@@ -4,8 +4,8 @@ import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, useFieldArray, useWatch } from "react-hook-form"
 import * as z from "zod"
-import { collection, query, orderBy, where, serverTimestamp } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from "@/firebase"
+import { useSupabaseCollection } from "@/supabase/use-collection"
+import { supabase } from "@/supabase/config"
 import { Sparkles, Loader2, Package, MapPin, Store, User, ShoppingCart, Plus, Trash2, Banknote, Truck, Navigation, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
@@ -42,25 +42,22 @@ const pabiliSchema = z.object({
 })
 
 export function BookingForm() {
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
 
-  // Queries
-  const merchantsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "merchants"), where("status", "==", "active"), orderBy("name", "asc"))
-  }, [firestore])
+  const { data: merchants, isLoading: loadingMerchants } = useSupabaseCollection("merchants", {
+    filter: { column: "status", operator: "==", value: "active" },
+    orderBy: { column: "name", ascending: true }
+  })
 
-  const ridersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "users"), where("role", "==", "rider"), where("status", "==", "online"))
-  }, [firestore])
+  const { data: riders, isLoading: loadingRiders } = useSupabaseCollection("users", {
+    filter: { column: "role", operator: "==", value: "rider" },
+    // status filter handled in component logic or query if possible
+  })
 
-  const ratesQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "deliveryRates"), orderBy("LOCATION", "asc"))
-  }, [firestore])
-
-  const { data: merchants, isLoading: loadingMerchants } = useCollection(merchantsQuery)
-  const { data: riders, isLoading: loadingRiders } = useCollection(ridersQuery)
-  const { data: rates } = useCollection(ratesQuery)
+  const { data: rates } = useSupabaseCollection("delivery_rates", {
+    orderBy: { column: "location", ascending: true }
+  })
 
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -101,7 +98,7 @@ export function BookingForm() {
   useEffect(() => {
     if (deliveryAddressWatch && rates) {
       const filtered = rates.filter(rate => 
-        rate.LOCATION?.toLowerCase().includes(deliveryAddressWatch.toLowerCase())
+        rate.location?.toLowerCase().includes(deliveryAddressWatch.toLowerCase())
       ).slice(0, 5)
       setAddressSuggestions(filtered)
     } else {
@@ -110,19 +107,25 @@ export function BookingForm() {
   }, [deliveryAddressWatch, rates])
 
   const calculateSubtotal = () => {
-    return itemsWatch.reduce((acc, item) => acc + (item.qty * item.price), 0)
+    return itemsWatch.reduce((acc, item) => {
+      const q = Number(item.qty) || 0
+      const p = Number(item.price) || 0
+      return acc + (q * p)
+    }, 0)
   }
 
   const subtotal = calculateSubtotal()
-  const grandTotal = subtotal + Number(deliveryFeeWatch)
+  const currentFee = Number(deliveryFeeWatch)
+  const grandTotal = subtotal + (isNaN(currentFee) ? 0 : currentFee)
 
   const handleSelectSuggestion = (rate: any) => {
-    form.setValue("deliveryAddress", rate.LOCATION)
-    form.setValue("deliveryFee", Number(rate["DELIVERY FEE"]))
+    const feeValue = Number(rate.fee || rate.delivery_fee || 0)
+    form.setValue("deliveryAddress", rate.location)
+    form.setValue("deliveryFee", isNaN(feeValue) ? 0 : feeValue)
     setShowSuggestions(false)
     toast({
       title: "Rate Synchronized",
-      description: `Delivery fee for ${rate.LOCATION} set to ₱${rate["DELIVERY FEE"]}.`,
+      description: `Delivery fee for ${rate.location} set to ₱${feeValue}.`,
     })
   }
 
@@ -130,28 +133,37 @@ export function BookingForm() {
     const selectedMerchant = merchants?.find(m => m.id === values.merchantId)
     const selectedRider = riders?.find(r => r.id === values.riderId)
 
-    addDocumentNonBlocking(collection(firestore, "orders"), {
-      bookingNo: `PABILI-${Math.floor(10000 + Math.random() * 90000)}`,
-      serviceType: "pabili",
-      customerName: values.customerName,
-      customerEmail: values.customerEmail,
-      customerPhone: values.customerPhone,
-      merchantId: values.merchantId,
-      merchantName: selectedMerchant?.name || "Generic Merchant",
-      deliveryAddress: values.deliveryAddress,
+    const { error } = await supabase.from("orders").insert({
+      booking_no: `PABILI-${Math.floor(10000 + Math.random() * 90000)}`,
+      service_type: "pabili",
+      customer_name: values.customerName,
+      customer_email: values.customerEmail,
+      customer_phone: values.customerPhone,
+      merchant_id: values.merchantId,
+      merchant_name: selectedMerchant?.name || "Generic Merchant",
+      delivery_address: values.deliveryAddress,
       items: values.items.map(item => ({
         ...item,
         total: item.qty * item.price
       })),
-      riderId: values.riderId,
-      riderName: selectedRider?.name || "Assigned Rider",
+      rider_id: values.riderId,
+      rider_name: selectedRider?.name || "Assigned Rider",
       status: "assigned",
       subtotal: subtotal,
-      deliveryFee: Number(values.deliveryFee),
-      finalTotal: grandTotal,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      delivery_fee: Number(values.deliveryFee),
+      final_total: grandTotal,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
+
+    if (error) {
+      toast({
+        title: "Order Failed",
+        description: error.message,
+        variant: "destructive"
+      })
+      return
+    }
 
     toast({
       title: "Pabili Order Deployed",
@@ -287,13 +299,13 @@ export function BookingForm() {
                                   <Navigation className="h-4 w-4" />
                                 </div>
                                 <div className="flex flex-col">
-                                  <span className="text-sm font-bold">{rate.LOCATION}</span>
+                                  <span className="text-sm font-bold">{rate.location}</span>
                                   <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tight">Regional Rate Intelligence</span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-1.5 font-bold text-primary group-hover:scale-110 transition-transform">
                                 <span className="text-xs">₱</span>
-                                {rate["DELIVERY FEE"]}
+                                {rate.delivery_fee}
                               </div>
                             </div>
                           ))}
@@ -400,7 +412,12 @@ export function BookingForm() {
                           <FormItem className="flex items-center gap-3 space-y-0 w-full">
                             <FormLabel className="text-muted-foreground text-sm whitespace-nowrap">Delivery Fee:</FormLabel>
                             <FormControl>
-                              <Input type="number" {...field} className="bg-background h-8 font-mono text-right font-bold" />
+                              <Input 
+                                type="number" 
+                                {...field} 
+                                value={isNaN(field.value) ? "" : field.value}
+                                className="bg-background h-8 font-mono text-right font-bold" 
+                              />
                             </FormControl>
                           </FormItem>
                         )}

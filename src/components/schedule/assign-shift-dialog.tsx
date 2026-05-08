@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { collection, addDoc, serverTimestamp, updateDoc, doc, Timestamp } from "firebase/firestore"
-import { useFirestore } from "@/firebase"
+import { supabase } from "@/supabase/config"
 import { useToast } from "@/hooks/use-toast"
 import { format, isToday, parse } from "date-fns"
 import {
@@ -90,7 +89,7 @@ export function AssignShiftDialog({
   const [autoStartMode, setAutoStartMode] = useState<AutoStartMode>("now")
   const [isSaving, setIsSaving] = useState(false)
 
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
 
   const filteredStaff = roleFilter === "all"
@@ -107,15 +106,13 @@ export function AssignShiftDialog({
   // Build the timeIn timestamp based on the chosen auto-start mode
   const buildTimeIn = () => {
     if (autoStartMode === "now" || !shiftStart || !date) {
-      // Option 1: use Firestore server timestamp (now)
-      return serverTimestamp()
+      return new Date().toISOString()
     }
-    // Option 2: use today's date + the shift start time string (e.g. "08:00")
     try {
       const parsed = parse(shiftStart, "HH:mm", new Date(date))
-      return Timestamp.fromDate(parsed)
+      return parsed.toISOString()
     } catch {
-      return serverTimestamp()
+      return new Date().toISOString()
     }
   }
 
@@ -130,49 +127,44 @@ export function AssignShiftDialog({
       const dateStr = format(date, "yyyy-MM-dd")
 
       // 1. Save schedule entry
-      await addDoc(collection(firestore, "schedules"), {
-        userId: user.id,
-        userName: user.name,
+      await supabase.from("schedules").insert({
+        user_id: user.id,
+        user_name: user.name,
         role: user.role,
         date: dateStr,
-        shiftLabel: selectedShift,
-        shiftStart: shiftStart,
-        shiftEnd: shiftEnd,
+        shift_type: selectedShift,
+        shift_start: shiftStart,
+        shift_end: shiftEnd,
         notes: notes || null,
-        createdAt: serverTimestamp(),
+        created_at: new Date().toISOString(),
       })
 
       // 2. If today + active shift → auto Time In via DTR
       if (isAssigningToday && isActiveShift) {
-        const dtrCollection = user.role === "rider" ? "riderDTR" : "tellerDTR"
         const timeInValue = buildTimeIn()
 
         const dtrPayload: Record<string, any> = {
-          timeIn: timeInValue,
-          timeOut: null,
+          user_id: user.id,
+          user_name: user.name,
+          role: user.role,
+          time_in: timeInValue,
+          time_out: null,
           date: dateStr,
-          shiftLabel: selectedShift,
-          shiftStart: shiftStart,
-          shiftEnd: shiftEnd,
+          shift_type: selectedShift,
+          shift_start: shiftStart,
+          shift_end: shiftEnd,
         }
 
-        if (user.role === "rider") {
-          dtrPayload.riderId = user.id
-          dtrPayload.riderName = user.name
-        } else {
-          dtrPayload.tellerId = user.id
-          dtrPayload.tellerName = user.name
-        }
+        const { data: dtrData, error: dtrError } = await supabase.from("dtr").insert(dtrPayload).select().single()
+        if (dtrError) throw dtrError
 
-        const dtrRef = await addDoc(collection(firestore, dtrCollection), dtrPayload)
-
-        await updateDoc(doc(firestore, "users", user.id), {
+        await supabase.from("users").update({
           status: "online",
-          lastTimeIn: timeInValue,
-          activeDtrId: dtrRef.id,
-          cashAdvance: 0,
-          ...(user.role === "rider" ? { budgetOnHand: 0 } : {}),
-        })
+          last_time_in: timeInValue,
+          active_dtr_id: dtrData.id,
+          cash_advance: 0,
+          ...(user.role === "rider" ? { budget_on_hand: 0 } : {}),
+        }).eq('id', user.id)
 
         const modeLabel =
           autoStartMode === "now"
@@ -310,7 +302,7 @@ export function AssignShiftDialog({
                   <SelectItem key={member.id} value={member.id}>
                     <div className="flex items-center gap-2">
                       <Avatar className="h-6 w-6">
-                        <AvatarImage src={member.avatar} />
+                        <AvatarImage src={member.avatar_url} />
                         <AvatarFallback className="bg-primary/10 text-primary text-[10px] font-bold">
                           {member.name?.charAt(0)}
                         </AvatarFallback>

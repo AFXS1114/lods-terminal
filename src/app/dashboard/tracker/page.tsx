@@ -1,25 +1,22 @@
 
 "use client"
 
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy, where } from "firebase/firestore"
+import { useSupabaseCollection } from "@/supabase/use-collection"
 import { OperationsMap } from "@/components/dashboard/operations-map"
 import { Card, CardContent } from "@/components/ui/card"
 import { Loader2, Maximize2, Map } from "lucide-react"
 
 export default function TrackerPage() {
-  const firestore = useFirestore()
+  const { data: orders, isLoading: ordersLoading } = useSupabaseCollection("orders", {
+    filter: { column: "status", operator: "==", value: "pending" }
+  })
 
-  const ordersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "orders"), where("status", "==", "pending"))
-  }, [firestore])
-
-  const ridersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "users"), where("role", "==", "rider"), where("status", "==", "online"))
-  }, [firestore])
-
-  const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery)
-  const { data: riders, isLoading: ridersLoading } = useCollection(ridersQuery)
+  const { data: riders, isLoading: ridersLoading } = useSupabaseCollection("users", {
+    filter: [
+      { column: "role", operator: "==", value: "rider" },
+      { column: "status", operator: "==", value: "online" }
+    ]
+  })
 
   if (ordersLoading || ridersLoading) {
     return (

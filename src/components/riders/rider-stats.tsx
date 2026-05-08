@@ -16,14 +16,14 @@ const sparklineData = [
 
 export function RiderStats({ riders, orders }: RiderStatsProps) {
   const onlineRiders = riders.filter(r => r.status === 'online' || r.status === 'busy')
-  const busyRidersCount = orders.filter(o => o.riderId).map(o => o.riderId).length
+  const busyRidersCount = orders.filter(o => o.rider_id).map(o => o.rider_id).length
   const idleRidersCount = onlineRiders.length - busyRidersCount
 
   const avgRating = riders.length > 0 
     ? (riders.reduce((acc, curr) => acc + (curr.rating || 0), 0) / riders.length).toFixed(1)
     : "0.0"
 
-  const totalDeployedBudget = riders.reduce((acc, curr) => acc + (Number(curr.budgetOnHand) || 0), 0)
+  const totalDeployedBudget = riders.reduce((acc, curr) => acc + (Number(curr.budget_on_hand) || 0), 0)
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">

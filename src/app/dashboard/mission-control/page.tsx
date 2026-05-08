@@ -1,8 +1,7 @@
 "use client"
 
 import { useMemo } from "react"
-import { collection, query, orderBy, limit, where } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useSupabaseCollection } from "@/supabase/use-collection"
 import { OrderStats } from "@/components/dashboard/order-stats"
 import { LiveOrderFeed } from "@/components/dashboard/live-order-feed"
 import { OperationsMap } from "@/components/dashboard/operations-map"
@@ -12,30 +11,30 @@ import { Button } from "@/components/ui/button"
 import { Loader2, RefreshCcw } from "lucide-react"
 
 export default function MissionControlPage() {
-  const firestore = useFirestore()
+  const { data: orders = [], isLoading: ordersLoading } = useSupabaseCollection("orders", {
+    orderBy: { column: "created_at", ascending: false },
+    limit: 50
+  })
 
-  const ordersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "orders"), orderBy("createdAt", "desc"), limit(50))
-  }, [firestore])
-
-  const ridersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "users"), where("role", "==", "rider"), where("status", "==", "online"))
-  }, [firestore])
-
-  const { data: orders, isLoading: ordersLoading } = useCollection(ordersQuery)
-  const { data: riders } = useCollection(ridersQuery)
+  const { data: riders = [], isLoading: ridersLoading } = useSupabaseCollection("users", {
+    filter: [
+      { column: "role", operator: "==", value: "rider" },
+      { column: "status", operator: "==", value: "online" }
+    ]
+  })
 
   const stats = useMemo(() => {
-    if (!orders) return { active: 0, online: riders?.length || 0, revenue: 0, pending: 0 }
+    const ordersList = orders || []
+    const ridersList = riders || []
     
-    const active = orders.filter(o => o.status === 'pending' || o.status === 'in-transit').length
-    const online = riders?.length || 0
-    const pending = orders.filter(o => o.status === 'pending').length
+    const active = ordersList.filter(o => o.status === 'pending' || o.status === 'in-transit').length
+    const online = ridersList.length
+    const pending = ordersList.filter(o => o.status === 'pending').length
     
-    const todayRevenue = orders
+    const todayRevenue = ordersList
       .filter(o => o.status !== 'cancelled')
-      .reduce((acc, curr) => acc + (Number(curr.finalTotal) || 0), 0)
-
+      .reduce((acc, curr) => acc + (Number(curr.final_total) || 0), 0)
+ 
     return { active, online, revenue: todayRevenue, pending }
   }, [orders, riders])
 

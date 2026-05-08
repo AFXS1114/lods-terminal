@@ -19,8 +19,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from "@/components/ui/select"
-import { doc, updateDoc } from "firebase/firestore"
-import { useFirestore } from "@/firebase"
+import { supabase } from "@/supabase/config"
 import { useToast } from "@/hooks/use-toast"
 import { Loader2, Settings, UserCircle, Truck, Phone, CheckCircle2 } from "lucide-react"
 
@@ -31,14 +30,14 @@ interface RiderEditSheetProps {
 }
 
 export function RiderEditSheet({ rider, open, onOpenChange }: RiderEditSheetProps) {
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
   
   const [isSaving, setIsSaving] = useState(false)
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
-    vehicleType: "",
+    vehicle_type: "",
     status: ""
   })
 
@@ -48,7 +47,7 @@ export function RiderEditSheet({ rider, open, onOpenChange }: RiderEditSheetProp
       setFormData({
         name: rider.name || "",
         phone: rider.phone || "",
-        vehicleType: rider.vehicleType || "Bike",
+        vehicle_type: rider.vehicle_type || "Bike",
         status: rider.status || "offline"
       })
     }
@@ -59,12 +58,12 @@ export function RiderEditSheet({ rider, open, onOpenChange }: RiderEditSheetProp
   const handleSave = async () => {
     setIsSaving(true)
     try {
-      await updateDoc(doc(firestore, "users", rider.id), {
+      await supabase.from('users').update({
         name: formData.name,
         phone: formData.phone,
-        vehicleType: formData.vehicleType,
+        vehicle_type: formData.vehicle_type,
         status: formData.status
-      })
+      }).eq('id', rider.id)
       toast({
         title: "Profile Updated",
         description: `${formData.name}'s profile has been successfully updated on the network.`
@@ -137,7 +136,7 @@ export function RiderEditSheet({ rider, open, onOpenChange }: RiderEditSheetProp
             <div className="grid gap-3">
               <div className="grid gap-1.5">
                 <Label htmlFor="vehicle" className="text-xs text-muted-foreground uppercase">Assigned Asset (Vehicle)</Label>
-                <Select value={formData.vehicleType} onValueChange={(v) => setFormData({...formData, vehicleType: v})}>
+                <Select value={formData.vehicle_type} onValueChange={(v) => setFormData({...formData, vehicle_type: v})}>
                   <SelectTrigger className="bg-muted/30">
                     <SelectValue placeholder="Select vehicle type" />
                   </SelectTrigger>

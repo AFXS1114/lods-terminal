@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { collection, query, orderBy, serverTimestamp, doc } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking, adminCreateUser, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
+import { useSupabaseCollection } from "@/supabase/use-collection"
+import { supabase } from "@/supabase/config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
@@ -51,7 +51,6 @@ import {
 type UserRole = 'rider' | 'manager' | 'admin' | 'partners' | 'customer' | 'teller';
 
 export default function SettingsPage() {
-  const firestore = useFirestore()
   const { toast } = useToast()
   
   const [searchTerm, setSearchTerm] = useState("")
@@ -71,22 +70,19 @@ export default function SettingsPage() {
   })
 
   const [rateData, setRateData] = useState({
-    LOCATION: "",
-    DISTANCE: "",
-    "DELIVERY FEE": "",
+    location: "",
+    distance: "",
+    fee: "",
   })
 
   // Queries
-  const usersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "users"), orderBy("name", "asc"))
-  }, [firestore])
+  const { data: users, isLoading: usersLoading } = useSupabaseCollection("users", {
+    orderBy: { column: "name", ascending: true }
+  })
 
-  const ratesQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "deliveryRates"), orderBy("LOCATION", "asc"))
-  }, [firestore])
-
-  const { data: users, isLoading: usersLoading } = useCollection(usersQuery)
-  const { data: rates, isLoading: ratesLoading } = useCollection(ratesQuery)
+  const { data: rates, isLoading: ratesLoading } = useSupabaseCollection("delivery_rates", {
+    orderBy: { column: "location", ascending: true }
+  })
 
   const handleAddUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -97,20 +93,38 @@ export default function SettingsPage() {
 
     setIsActionLoading(true)
     try {
-      const uid = await adminCreateUser(formData.email, formData.password)
-      const userRef = doc(firestore, "users", uid)
-      setDocumentNonBlocking(userRef, {
+      // For Supabase, we'll use signUp. 
+      // Note: In a real admin scenario, you'd use a service role on the server,
+      // but for this migration we'll attempt a regular signUp.
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+            role: formData.role
+          }
+        }
+      })
+
+      if (authError) throw authError
+
+      const uid = authData.user?.id
+      if (!uid) throw new Error("Failed to retrieve UID")
+
+      await supabase.from("users").upsert({
+        id: uid,
         name: formData.name,
         email: formData.email,
         role: formData.role,
         status: formData.status,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      }, { merge: true })
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
 
       toast({ 
         title: "Terminal Access Deployed", 
-        description: `${formData.name} is now registered in Auth and Firestore.` 
+        description: `${formData.name} is now registered in Auth and Supabase.` 
       })
       setIsAddUserOpen(false)
       resetUserForm()
@@ -125,28 +139,30 @@ export default function SettingsPage() {
     }
   }
 
-  const handleAddRate = (e: React.FormEvent) => {
+  const handleAddRate = async (e: React.FormEvent) => {
     e.preventDefault()
-    addDocumentNonBlocking(collection(firestore, "deliveryRates"), {
-      ...rateData,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+    await supabase.from("delivery_rates").insert({
+      location: rateData.location,
+      distance: rateData.distance,
+      fee: Number(rateData.fee),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
-    toast({ title: "Rate Configured", description: `New rate for ${rateData.LOCATION} has been deployed.` })
+    toast({ title: "Rate Configured", description: `New rate for ${rateData.location} has been deployed.` })
     setIsAddRateOpen(false)
     resetRateForm()
   }
 
-  const handleUpdateRate = (e: React.FormEvent) => {
+  const handleUpdateRate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedRate) return
 
-    updateDocumentNonBlocking(doc(firestore, "deliveryRates", selectedRate.id), {
-      "DELIVERY FEE": rateData["DELIVERY FEE"],
-      updatedAt: serverTimestamp()
-    })
+    await supabase.from("delivery_rates").update({
+      fee: Number(rateData.fee),
+      updated_at: new Date().toISOString()
+    }).eq('id', selectedRate.id)
 
-    toast({ title: "Fee Updated", description: `Delivery fee for ${selectedRate.LOCATION} is now ₱${rateData["DELIVERY FEE"]}.` })
+    toast({ title: "Fee Updated", description: `Delivery fee for ${selectedRate.location} is now ₱${rateData.fee}.` })
     setIsEditRateOpen(false)
     setSelectedRate(null)
   }
@@ -160,11 +176,13 @@ export default function SettingsPage() {
       try {
         const json = JSON.parse(event.target?.result as string)
         if (Array.isArray(json)) {
-          json.forEach(rate => {
-            addDocumentNonBlocking(collection(firestore, "deliveryRates"), {
-              ...rate,
-              createdAt: serverTimestamp(),
-              updatedAt: serverTimestamp(),
+          json.forEach(async (rate) => {
+            await supabase.from("delivery_rates").insert({
+              location: rate.LOCATION || rate.location,
+              distance: rate.DISTANCE || rate.distance,
+              fee: Number(rate["DELIVERY FEE"] || rate.fee),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
             })
           })
           toast({ title: "Bulk Import Initiated", description: `Synchronizing ${json.length} rates with terminal database.` })
@@ -182,9 +200,9 @@ export default function SettingsPage() {
 
   const resetRateForm = () => {
     setRateData({
-      LOCATION: "",
-      DISTANCE: "",
-      "DELIVERY FEE": "",
+      location: "",
+      distance: "",
+      fee: "",
     })
   }
 
@@ -390,8 +408,8 @@ export default function SettingsPage() {
                               </DropdownMenuItem>
                               <DropdownMenuItem 
                                 className="text-destructive focus:text-destructive"
-                                onClick={() => {
-                                  deleteDocumentNonBlocking(doc(firestore, "users", user.id))
+                                onClick={async () => {
+                                  await supabase.from("users").delete().eq('id', user.id)
                                   toast({ title: "Profile Revoked", variant: "destructive" })
                                 }}
                               >
@@ -442,16 +460,16 @@ export default function SettingsPage() {
                   <div className="grid gap-4 py-4">
                     <div className="space-y-2">
                       <Label>Location Name</Label>
-                      <Input placeholder="e.g. Cadandanan" value={rateData.LOCATION} onChange={e => setRateData({...rateData, LOCATION: e.target.value})} required />
+                      <Input placeholder="e.g. Cadandanan" value={rateData.location} onChange={e => setRateData({...rateData, location: e.target.value})} required />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label>Distance Metric</Label>
-                        <Input placeholder="e.g. 13 km" value={rateData.DISTANCE} onChange={e => setRateData({...rateData, DISTANCE: e.target.value})} required />
+                        <Input placeholder="e.g. 13 km" value={rateData.distance} onChange={e => setRateData({...rateData, distance: e.target.value})} required />
                       </div>
                       <div className="space-y-2">
                         <Label>Delivery Fee</Label>
-                        <Input placeholder="e.g. 195" value={rateData["DELIVERY FEE"]} onChange={e => setRateData({...rateData, "DELIVERY FEE": e.target.value})} required />
+                        <Input placeholder="e.g. 195" value={rateData.fee} onChange={e => setRateData({...rateData, fee: e.target.value})} required />
                       </div>
                     </div>
                   </div>
@@ -485,19 +503,19 @@ export default function SettingsPage() {
                         <TableCell>
                           <div className="flex items-center gap-2">
                             <MapPin className="h-4 w-4 text-primary" />
-                            <span className="font-bold text-sm">{rate.LOCATION}</span>
+                            <span className="font-bold text-sm">{rate.location}</span>
                           </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="font-mono text-[10px]">
                             <Navigation className="h-3 w-3 mr-1" />
-                            {rate.DISTANCE}
+                            {rate.distance}
                           </Badge>
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-1.5 font-bold text-primary">
                             <span className="text-sm">₱</span>
-                            {rate["DELIVERY FEE"]}
+                            {rate.fee}
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
@@ -509,9 +527,9 @@ export default function SettingsPage() {
                                onClick={() => {
                                  setSelectedRate(rate)
                                  setRateData({
-                                   LOCATION: rate.LOCATION,
-                                   DISTANCE: rate.DISTANCE,
-                                   "DELIVERY FEE": rate["DELIVERY FEE"]
+                                   location: rate.location,
+                                   distance: rate.distance,
+                                   fee: rate.fee
                                  })
                                  setIsEditRateOpen(true)
                                }}
@@ -522,7 +540,9 @@ export default function SettingsPage() {
                                variant="ghost" 
                                size="icon" 
                                className="h-8 w-8 text-destructive"
-                               onClick={() => deleteDocumentNonBlocking(doc(firestore, "deliveryRates", rate.id))}
+                               onClick={async () => {
+                                 await supabase.from("delivery_rates").delete().eq('id', rate.id)
+                               }}
                              >
                                <Trash2 className="h-4 w-4" />
                              </Button>
@@ -558,11 +578,11 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
                     <div className="flex flex-col">
                       <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Location</span>
-                      <span className="text-sm font-bold">{selectedRate?.LOCATION}</span>
+                      <span className="text-sm font-bold">{selectedRate?.location}</span>
                     </div>
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] uppercase font-bold text-muted-foreground tracking-widest">Distance</span>
-                      <span className="text-sm font-bold">{selectedRate?.DISTANCE}</span>
+                      <span className="text-sm font-bold">{selectedRate?.distance}</span>
                     </div>
                   </div>
                   
@@ -573,8 +593,8 @@ export default function SettingsPage() {
                       <Input 
                         id="fee" 
                         className="pl-9 font-bold text-lg h-12 border-primary/20 focus:border-primary" 
-                        value={rateData["DELIVERY FEE"]} 
-                        onChange={e => setRateData({...rateData, "DELIVERY FEE": e.target.value})} 
+                        value={rateData.fee} 
+                        onChange={e => setRateData({...rateData, fee: e.target.value})} 
                         required 
                       />
                     </div>

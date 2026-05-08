@@ -1,8 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { collection, query, orderBy, serverTimestamp, doc, where } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking } from "@/firebase"
+import { useSupabaseCollection } from "@/supabase/use-collection"
+import { supabase } from "@/supabase/config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Checkbox } from "@/components/ui/checkbox"
 
 export default function PartnersPage() {
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
   
   const [searchTerm, setSearchTerm] = useState("")
@@ -26,47 +26,49 @@ export default function PartnersPage() {
   const [formData, setFormData] = useState({
     name: "",
     category: "Food",
-    contactPerson: "",
+    contact_person: "",
     phone: "",
     address: "",
   })
 
-  // Queries
-  const merchantsQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "merchants"), orderBy("name", "asc"))
-  }, [firestore])
-
-  const allOrdersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "orders"))
-  }, [firestore])
-
   // Real-time data
-  const { data: merchants, isLoading: loadingMerchants } = useCollection(merchantsQuery)
-  const { data: allOrders } = useCollection(allOrdersQuery)
+  const { data: merchants, isLoading: loadingMerchants } = useSupabaseCollection("merchants", {
+    orderBy: { column: "name", ascending: true }
+  })
+  const { data: allOrders } = useSupabaseCollection("orders")
 
   const handleAddMerchant = async (e: React.FormEvent) => {
     e.preventDefault()
-    addDocumentNonBlocking(collection(firestore, "merchants"), {
+    const { error } = await supabase.from("merchants").insert({
       ...formData,
       status: "active",
-      createdAt: serverTimestamp(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     })
+
+    if (error) {
+      toast({ 
+        title: "Registration Failed", 
+        description: error.message, 
+        variant: "destructive" 
+      })
+      return
+    }
+
     toast({ title: "Merchant Added", description: `${formData.name} has been successfully registered.` })
     setIsModalOpen(false)
-    setFormData({ name: "", category: "Food", contactPerson: "", phone: "", address: "" })
+    setFormData({ name: "", category: "Food", contact_person: "", phone: "", address: "" })
   }
 
-  const toggleStatus = (id: string, currentStatus: string) => {
+  const toggleStatus = async (id: string, currentStatus: string) => {
     const newStatus = currentStatus === "active" ? "inactive" : "active"
-    updateDocumentNonBlocking(doc(firestore, "merchants", id), { status: newStatus })
+    await supabase.from("merchants").update({ status: newStatus }).eq('id', id)
     toast({ title: "Status Updated", description: `Merchant is now ${newStatus}.` })
   }
 
-  const handleBulkStatus = (newStatus: "active" | "inactive") => {
-    selectedIds.forEach(id => {
-      updateDocumentNonBlocking(doc(firestore, "merchants", id), { status: newStatus })
-    })
-    toast({ title: "Bulk Update Initialized", description: `${selectedIds.length} merchants being updated to ${newStatus}.` })
+  const handleBulkStatus = async (newStatus: "active" | "inactive") => {
+    await supabase.from("merchants").update({ status: newStatus }).in('id', selectedIds)
+    toast({ title: "Bulk Update Complete", description: `${selectedIds.length} merchants updated to ${newStatus}.` })
     setSelectedIds([])
   }
 
@@ -77,14 +79,14 @@ export default function PartnersPage() {
 
   const getActiveOrdersCount = (merchantId: string, merchantName: string) => {
     return allOrders?.filter(o => 
-      (o.merchantId === merchantId || o.merchantName === merchantName || o.merchant === merchantName) &&
+      (o.merchant_id === merchantId || o.merchant_name === merchantName) &&
       ["pending", "in-transit", "picked-up", "assigned"].includes(o.status?.toLowerCase())
     ).length || 0
   }
 
   const getLifetimeOrdersCount = (merchantId: string, merchantName: string) => {
     return allOrders?.filter(o => 
-      o.merchantId === merchantId || o.merchantName === merchantName || o.merchant === merchantName
+      o.merchant_id === merchantId || o.merchant_name === merchantName
     ).length || 0
   }
 
@@ -145,7 +147,7 @@ export default function PartnersPage() {
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="contact" className="text-right">Contact</Label>
-                    <Input id="contact" value={formData.contactPerson} onChange={e => setFormData({...formData, contactPerson: e.target.value})} className="col-span-3" placeholder="Manager Name" />
+                    <Input id="contact" value={formData.contact_person} onChange={e => setFormData({...formData, contact_person: e.target.value})} className="col-span-3" placeholder="Manager Name" />
                   </div>
                   <div className="grid grid-cols-4 items-center gap-4">
                     <Label htmlFor="phone" className="text-right">Phone</Label>
@@ -237,7 +239,7 @@ export default function PartnersPage() {
                       <TableCell>
                         <div className="flex flex-col">
                           <span className="text-sm font-medium flex items-center gap-1">
-                            <User className="h-3 w-3 text-muted-foreground" /> {merchant.contactPerson || "N/A"}
+                            <User className="h-3 w-3 text-muted-foreground" /> {merchant.contact_person || "N/A"}
                           </span>
                           <span className="text-xs text-muted-foreground flex items-center gap-1">
                             <Phone className="h-3 w-3" /> {merchant.phone || "No Phone"}

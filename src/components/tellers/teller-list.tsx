@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { doc, updateDoc, increment, serverTimestamp, collection, addDoc } from "firebase/firestore"
-import { useFirestore } from "@/firebase"
+import { supabase } from "@/supabase/config"
 import { useToast } from "@/hooks/use-toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
@@ -23,7 +22,7 @@ export function TellerList({ tellers }: TellerListProps) {
   const [cashAmount, setCashAmount] = useState<string>("")
   const [isResetting, setIsResetting] = useState(false)
   
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
 
   const filteredTellers = tellers.filter(t => 
@@ -32,19 +31,24 @@ export function TellerList({ tellers }: TellerListProps) {
 
   const handleTimeIn = async (teller: any) => {
     try {
-      const dtrRef = await addDoc(collection(firestore, "tellerDTR"), {
-        tellerId: teller.id,
-        tellerName: teller.name,
-        timeIn: serverTimestamp(),
-        timeOut: null,
+      const { data: dtrData, error: dtrError } = await supabase.from('dtr').insert({
+        user_id: teller.id,
+        user_name: teller.name,
+        role: "teller",
+        time_in: new Date().toISOString(),
+        time_out: null,
         date: new Date().toISOString().split('T')[0]
-      })
-      await updateDoc(doc(firestore, "users", teller.id), {
+      }).select().single()
+
+      if (dtrError) throw dtrError
+
+      await supabase.from('users').update({
         status: "online",
-        lastTimeIn: serverTimestamp(),
-        activeDtrId: dtrRef.id,
-        cashAdvance: 0 // Ensure starting with 0 on clock in
-      })
+        last_time_in: new Date().toISOString(),
+        active_dtr_id: dtrData.id,
+        cash_advance: 0
+      }).eq('id', teller.id)
+
       toast({ title: "Teller Online", description: `${teller.name} is now deployed.` })
     } catch (e) {
       toast({ title: "Error", description: "Failed to time in.", variant: "destructive" })
@@ -53,19 +57,20 @@ export function TellerList({ tellers }: TellerListProps) {
 
   const handleEndDuty = async (teller: any) => {
     try {
-      if (teller.activeDtrId) {
-        await updateDoc(doc(firestore, "tellerDTR", teller.activeDtrId), {
-          timeOut: serverTimestamp(),
-          finalCashAdvance: teller.cashAdvance || 0
-        })
+      if (teller.active_dtr_id) {
+        await supabase.from('dtr').update({
+          time_out: new Date().toISOString(),
+          final_cash_advance: teller.cash_advance || 0
+        }).eq('id', teller.active_dtr_id)
       }
       
-      await updateDoc(doc(firestore, "users", teller.id), {
+      await supabase.from('users').update({
         status: "offline",
-        lastTimeIn: null,
-        activeDtrId: null,
-        cashAdvance: 0 // Wipe the cash advance completely
-      })
+        last_time_in: null,
+        active_dtr_id: null,
+        cash_advance: 0
+      }).eq('id', teller.id)
+
       toast({ title: "Shift Terminated", description: `${teller.name} clocked out. Advances cleared.` })
     } catch (e) {
       toast({ title: "Error", description: "Failed to end duty.", variant: "destructive" })
@@ -77,18 +82,21 @@ export function TellerList({ tellers }: TellerListProps) {
     try {
       const teller = tellers.find(t => t.id === tellerId)
 
-      await updateDoc(doc(firestore, "users", tellerId), {
-        cashAdvance: increment(Number(cashAmount))
+      await supabase.rpc('increment_column', {
+        table_name: 'users',
+        column_name: 'cash_advance',
+        row_id: tellerId,
+        amount: Number(cashAmount)
       })
 
       if (teller) {
-        await addDoc(collection(firestore, "cashAdvances"), {
-          userId: teller.id,
-          userName: teller.name,
+        await supabase.from('cash_advances').insert({
+          user_id: teller.id,
+          user_name: teller.name,
           role: "teller",
           amount: Number(cashAmount),
           type: "cash_advance",
-          timestamp: serverTimestamp(),
+          timestamp: new Date().toISOString(),
           date: new Date().toISOString().split('T')[0]
         })
       }
@@ -106,18 +114,18 @@ export function TellerList({ tellers }: TellerListProps) {
     try {
       const activeTellers = tellers.filter(r => r.status && r.status !== "offline")
       for (const t of activeTellers) {
-        if (t.activeDtrId) {
-          await updateDoc(doc(firestore, "tellerDTR", t.activeDtrId), {
-            timeOut: serverTimestamp(),
-            finalCashAdvance: t.cashAdvance || 0
-          })
+        if (t.active_dtr_id) {
+          await supabase.from('dtr').update({
+            time_out: new Date().toISOString(),
+            final_cash_advance: t.cash_advance || 0
+          }).eq('id', t.active_dtr_id)
         }
-        await updateDoc(doc(firestore, "users", t.id), {
+        await supabase.from('users').update({
           status: "offline",
-          lastTimeIn: null,
-          activeDtrId: null,
-          cashAdvance: 0
-        })
+          last_time_in: null,
+          active_dtr_id: null,
+          cash_advance: 0
+        }).eq('id', t.id)
       }
       toast({ title: "Reset Complete", description: `Successfully stood down ${activeTellers.length} tellers.` })
     } catch (e) {
@@ -178,7 +186,7 @@ export function TellerList({ tellers }: TellerListProps) {
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="h-9 w-9 border border-primary/20">
-                      <AvatarImage src={teller.avatar} />
+                      <AvatarImage src={teller.avatar_url} />
                       <AvatarFallback className="bg-primary/10 text-primary font-bold">{teller.name?.charAt(0)}</AvatarFallback>
                     </Avatar>
                     <div className="flex flex-col">
@@ -198,19 +206,19 @@ export function TellerList({ tellers }: TellerListProps) {
                     </Button>
                   )}
                 </TableCell>
-                <TableCell>
-                  {teller.status && teller.status !== 'offline' && teller.lastTimeIn ? (
-                    <div className="flex items-center gap-1.5 font-mono text-sm text-primary font-medium">
-                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                      {new Date(typeof teller.lastTimeIn.toDate === 'function' ? teller.lastTimeIn.toDate() : teller.lastTimeIn).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </div>
-                  ) : (
-                    <span className="text-muted-foreground text-xs font-mono italic">--:--</span>
-                  )}
-                </TableCell>
-                <TableCell>
-                   <div className="flex items-center gap-3">
-                    <span className={`font-bold text-sm tabular-nums ${teller.cashAdvance > 0 ? 'text-accent' : 'text-primary'}`}>₱{(teller.cashAdvance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                 <TableCell>
+                    {teller.status && teller.status !== 'offline' && teller.last_time_in ? (
+                      <div className="flex items-center gap-1.5 font-mono text-sm text-primary font-medium">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                        {new Date(teller.last_time_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground text-xs font-mono italic">--:--</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                     <div className="flex items-center gap-3">
+                      <span className={`font-bold text-sm tabular-nums ${teller.cash_advance > 0 ? 'text-accent' : 'text-primary'}`}>₱{(teller.cash_advance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     {teller.status && teller.status !== 'offline' && (
                       <Popover open={allocatingFor === teller.id} onOpenChange={(open) => {
                         if (open) { setAllocatingFor(teller.id); setCashAmount("") } 

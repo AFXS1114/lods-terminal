@@ -1,25 +1,19 @@
 "use client"
 
-import { collection, query, where } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useSupabaseCollection } from "@/supabase/use-collection"
 import { RiderStats } from "@/components/riders/rider-stats"
 import { RiderList } from "@/components/riders/rider-list"
 import { RiderSidebar } from "@/components/riders/rider-sidebar"
 import { Loader2 } from "lucide-react"
 
 export default function RidersPage() {
-  const firestore = useFirestore()
+  const { data: riders, isLoading: ridersLoading } = useSupabaseCollection("users", {
+    filter: { column: "role", operator: "==", value: "rider" }
+  })
 
-  const ridersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "users"), where("role", "==", "rider"))
-  }, [firestore])
-
-  const activeOrdersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "orders"), where("status", "in", ["pending", "in-transit", "picked-up"]))
-  }, [firestore])
-
-  const { data: riders, isLoading: ridersLoading } = useCollection(ridersQuery)
-  const { data: activeOrders } = useCollection(activeOrdersQuery)
+  const { data: activeOrders } = useSupabaseCollection("orders", {
+    filter: { column: "status", operator: "in", value: ["pending", "in-transit", "picked-up"] }
+  })
 
   if (ridersLoading) {
     return (

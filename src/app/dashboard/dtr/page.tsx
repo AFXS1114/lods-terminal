@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { collection, query, orderBy } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
+import { useSupabaseCollection } from "@/supabase/use-collection"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -21,45 +20,22 @@ export default function DtrPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined)
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all")
-  const firestore = useFirestore()
 
-  const riderDtrQuery = useMemoFirebase(() =>
-    query(collection(firestore, "riderDTR"), orderBy("timeIn", "desc"))
-  , [firestore])
+  const { data: allRecordsData, isLoading } = useSupabaseCollection("dtr", {
+    orderBy: { column: "time_in", ascending: false }
+  })
 
-  const tellerDtrQuery = useMemoFirebase(() =>
-    query(collection(firestore, "tellerDTR"), orderBy("timeIn", "desc"))
-  , [firestore])
-
-  const { data: riderRecords, isLoading: riderLoading } = useCollection(riderDtrQuery)
-  const { data: tellerRecords, isLoading: tellerLoading } = useCollection(tellerDtrQuery)
-
-  const isLoading = riderLoading || tellerLoading
-
-  // Merge and tag each record with its role
   const allRecords = useMemo(() => {
-    const riders = (riderRecords || []).map(r => ({
+    return (allRecordsData || []).map(r => ({
       ...r,
-      role: "rider" as const,
-      staffName: r.riderName || "Unknown Rider",
+      staffName: r.user_name || "Unknown Staff",
     }))
-    const tellers = (tellerRecords || []).map(r => ({
-      ...r,
-      role: "teller" as const,
-      staffName: r.tellerName || "Unknown Teller",
-    }))
-    // Merge and sort by timeIn desc
-    return [...riders, ...tellers].sort((a, b) => {
-      const aTime = a.timeIn?.toDate ? a.timeIn.toDate().getTime() : 0
-      const bTime = b.timeIn?.toDate ? b.timeIn.toDate().getTime() : 0
-      return bTime - aTime
-    })
-  }, [riderRecords, tellerRecords])
+  }, [allRecordsData])
 
   const formatTime = (timestamp: any) => {
     if (!timestamp) return '---'
     try {
-      const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp)
+      const date = new Date(timestamp)
       return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     } catch { return 'Invalid' }
   }
@@ -67,7 +43,7 @@ export default function DtrPage() {
   const formatDate = (timestamp: any) => {
     if (!timestamp) return '---'
     try {
-      const date = typeof timestamp.toDate === 'function' ? timestamp.toDate() : new Date(timestamp)
+      const date = new Date(timestamp)
       return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     } catch { return 'Invalid' }
   }
@@ -75,10 +51,8 @@ export default function DtrPage() {
   const calculateDuration = (timeIn: any, timeOut: any) => {
     if (!timeIn) return 'N/A'
     try {
-      const start = typeof timeIn.toDate === 'function' ? timeIn.toDate() : new Date(timeIn)
-      const end = timeOut
-        ? (typeof timeOut.toDate === 'function' ? timeOut.toDate() : new Date(timeOut))
-        : new Date()
+      const start = new Date(timeIn)
+      const end = timeOut ? new Date(timeOut) : new Date()
       const diffMs = end.getTime() - start.getTime()
       if (diffMs < 0) return '0h 0m'
       const hours = Math.floor(diffMs / (1000 * 60 * 60))
@@ -92,9 +66,9 @@ export default function DtrPage() {
     const matchesSearch = r.staffName?.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRole = roleFilter === "all" || r.role === roleFilter
     let matchesDate = true
-    if (dateFilter && r.timeIn) {
+    if (dateFilter && r.time_in) {
       try {
-        const recordDate = typeof r.timeIn.toDate === 'function' ? r.timeIn.toDate() : new Date(r.timeIn)
+        const recordDate = new Date(r.time_in)
         matchesDate = recordDate.toDateString() === dateFilter.toDateString()
       } catch { matchesDate = false }
     }
@@ -103,13 +77,13 @@ export default function DtrPage() {
 
   const datesWithRecords = useMemo(() => {
     return allRecords
-      .map(r => r.timeIn ? (typeof r.timeIn.toDate === 'function' ? r.timeIn.toDate() : new Date(r.timeIn)) : null)
+      .map(r => r.time_in ? new Date(r.time_in) : null)
       .filter((date): date is Date => date !== null)
   }, [allRecords])
 
-  const activeShifts = allRecords.filter(r => !r.timeOut).length
-  const activeRiders = (riderRecords || []).filter(r => !r.timeOut).length
-  const activeTellers = (tellerRecords || []).filter(r => !r.timeOut).length
+  const activeShifts = allRecords.filter(r => !r.time_out).length
+  const activeRiders = allRecords.filter(r => r.role === "rider" && !r.time_out).length
+  const activeTellers = allRecords.filter(r => r.role === "teller" && !r.time_out).length
 
   return (
     <div className="space-y-6">
@@ -265,7 +239,7 @@ export default function DtrPage() {
                   filteredRecords.map((record) => (
                     <TableRow key={record.id} className="hover:bg-muted/30 transition-colors">
                       <TableCell className="font-medium whitespace-nowrap text-sm">
-                        {formatDate(record.timeIn)}
+                        {formatDate(record.time_in)}
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">
@@ -291,8 +265,8 @@ export default function DtrPage() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {record.shiftLabel ? (
-                          <span className="text-xs font-semibold text-muted-foreground">{record.shiftLabel}</span>
+                        {record.shift_type ? (
+                          <span className="text-xs font-semibold text-muted-foreground">{record.shift_type}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground italic">—</span>
                         )}
@@ -300,24 +274,24 @@ export default function DtrPage() {
                       <TableCell className="font-mono text-sm">
                         <div className="flex items-center gap-1.5">
                           <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
-                          {formatTime(record.timeIn)}
+                          {formatTime(record.time_in)}
                         </div>
                       </TableCell>
                       <TableCell className="font-mono text-sm">
                         {record.timeOut ? (
                           <div className="flex items-center gap-1.5">
                             <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
-                            {formatTime(record.timeOut)}
+                            {formatTime(record.time_out)}
                           </div>
                         ) : (
                           <span className="text-muted-foreground italic">--:--</span>
                         )}
                       </TableCell>
                       <TableCell className="font-bold">
-                        {calculateDuration(record.timeIn, record.timeOut)}
+                        {calculateDuration(record.time_in, record.time_out)}
                       </TableCell>
                       <TableCell>
-                        {record.timeOut ? (
+                        {record.time_out ? (
                           <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted">
                             Completed
                           </Badge>

@@ -1,8 +1,7 @@
 "use client"
 
 import { useState, useMemo } from "react"
-import { doc, deleteDoc } from "firebase/firestore"
-import { useFirestore } from "@/firebase"
+import { supabase } from "@/supabase/config"
 import { useToast } from "@/hooks/use-toast"
 import { format, eachDayOfInterval, endOfWeek, isToday, parseISO } from "date-fns"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
@@ -78,7 +77,7 @@ export function ScheduleBoard({ schedules, staff, weekStart }: ScheduleBoardProp
   const [dialogOpen, setDialogOpen] = useState(false)
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
 
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
 
   const weekDays = useMemo(
@@ -105,7 +104,7 @@ export function ScheduleBoard({ schedules, staff, weekStart }: ScheduleBoardProp
 
   const handleRemoveShift = async (scheduleId: string, userName: string) => {
     try {
-      await deleteDoc(doc(firestore, "schedules", scheduleId))
+      await supabase.from("schedules").delete().eq('id', scheduleId)
       toast({ title: "Shift Removed", description: `${userName}'s shift has been cleared.` })
     } catch {
       toast({ title: "Error", description: "Failed to remove shift.", variant: "destructive" })
@@ -182,7 +181,7 @@ export function ScheduleBoard({ schedules, staff, weekStart }: ScheduleBoardProp
                     </div>
                   ) : (
                     shifts.map((shift) => {
-                      const config = SHIFT_CONFIG[shift.shiftLabel] || SHIFT_CONFIG["Rest Day"]
+                      const config = SHIFT_CONFIG[shift.shift_type] || SHIFT_CONFIG["Rest Day"]
                       const ShiftIcon = config.icon
                       const isRider = shift.role === "rider"
 
@@ -203,13 +202,13 @@ export function ScheduleBoard({ schedules, staff, weekStart }: ScheduleBoardProp
                                   <div className="flex items-start justify-between gap-1">
                                     <div className="flex items-center gap-1.5 min-w-0">
                                       <Avatar className="h-5 w-5 shrink-0 ring-1 ring-white/50">
-                                        <AvatarImage src={shift.avatar} />
+                                        <AvatarImage src={shift.avatar_url} />
                                         <AvatarFallback className="text-[8px] font-bold bg-muted">
-                                          {shift.userName?.charAt(0)}
+                                          {shift.user_name?.charAt(0)}
                                         </AvatarFallback>
                                       </Avatar>
                                       <span className="text-[10px] font-semibold leading-tight truncate">
-                                        {shift.userName?.split(" ")[0]}
+                                        {shift.user_name?.split(" ")[0]}
                                       </span>
                                     </div>
                                     <AlertDialog>
@@ -222,14 +221,14 @@ export function ScheduleBoard({ schedules, staff, weekStart }: ScheduleBoardProp
                                         <AlertDialogHeader>
                                           <AlertDialogTitle>Remove Shift?</AlertDialogTitle>
                                           <AlertDialogDescription>
-                                            Remove <strong>{shift.userName}</strong>'s {shift.shiftLabel} shift on {format(parseISO(shift.date), "EEE, MMM d")}?
+                                            Remove <strong>{shift.user_name}</strong>'s {shift.shift_type} shift on {format(parseISO(shift.date), "EEE, MMM d")}?
                                           </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
                                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                                           <AlertDialogAction
                                             className="bg-destructive hover:bg-destructive/90"
-                                            onClick={() => handleRemoveShift(shift.id, shift.userName)}
+                                            onClick={() => handleRemoveShift(shift.id, shift.user_name)}
                                           >
                                             Remove
                                           </AlertDialogAction>
@@ -240,12 +239,12 @@ export function ScheduleBoard({ schedules, staff, weekStart }: ScheduleBoardProp
                                   <div className="flex items-center gap-1 mt-1">
                                     <ShiftIcon className={`h-2.5 w-2.5 ${config.colorClass}`} />
                                     <span className={`text-[9px] font-bold uppercase tracking-wide ${config.colorClass}`}>
-                                      {shift.shiftLabel}
+                                      {shift.shift_type}
                                     </span>
                                   </div>
-                                  {shift.shiftStart && shift.shiftEnd && (
+                                  {shift.shift_start && shift.shift_end && (
                                     <p className="text-[9px] text-muted-foreground mt-0.5 font-mono">
-                                      {shift.shiftStart}–{shift.shiftEnd}
+                                      {shift.shift_start}–{shift.shift_end}
                                     </p>
                                   )}
                                   {shift.notes && (
@@ -256,12 +255,12 @@ export function ScheduleBoard({ schedules, staff, weekStart }: ScheduleBoardProp
                                 </div>
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent side="right" className="text-xs max-w-[180px]">
-                              <p className="font-bold">{shift.userName}</p>
-                              <p className="text-muted-foreground capitalize">{shift.role} · {shift.shiftLabel}</p>
-                              {shift.shiftStart && <p className="font-mono">{shift.shiftStart} – {shift.shiftEnd}</p>}
-                              {shift.notes && <p className="italic mt-1">{shift.notes}</p>}
-                            </TooltipContent>
+                             <TooltipContent side="right" className="text-xs max-w-[180px]">
+                               <p className="font-bold">{shift.user_name}</p>
+                               <p className="text-muted-foreground capitalize">{shift.role} · {shift.shift_type}</p>
+                               {shift.shift_start && <p className="font-mono">{shift.shift_start} – {shift.shift_end}</p>}
+                               {shift.notes && <p className="italic mt-1">{shift.notes}</p>}
+                             </TooltipContent>
                           </Tooltip>
                         </TooltipProvider>
                       )

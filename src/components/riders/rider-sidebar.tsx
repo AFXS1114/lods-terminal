@@ -41,12 +41,12 @@ export function RiderSidebar({ riders }: RiderSidebarProps) {
             <div key={rider.id} className="flex items-center gap-3">
               <div className="relative font-bold text-xs text-muted-foreground w-4">{i + 1}</div>
               <Avatar className="h-8 w-8">
-                <AvatarImage src={rider.avatar} />
+                <AvatarImage src={rider.avatar_url} />
                 <AvatarFallback>{rider.name?.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold truncate">{rider.name}</p>
-                <p className="text-[10px] text-muted-foreground">{rider.vehicleType}</p>
+                <p className="text-[10px] text-muted-foreground">{rider.vehicle_type}</p>
               </div>
               <div className="text-[10px] font-bold text-accent">★ {rider.rating}</div>
             </div>

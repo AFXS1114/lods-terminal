@@ -5,9 +5,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Truck, ArrowLeftRight, CheckCircle2, AlertCircle, Loader2 } from "lucide-react"
-import { doc, updateDoc } from "firebase/firestore"
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, where } from "firebase/firestore"
+import { useSupabaseCollection } from "@/supabase/use-collection"
+import { supabase } from "@/supabase/config"
 import { useToast } from "@/hooks/use-toast"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -22,32 +21,30 @@ interface RiderTransferPopoverProps {
 export function RiderTransferPopover({ orderId, currentRiderId, currentRiderName, orderStatus }: RiderTransferPopoverProps) {
   const [open, setOpen] = useState(false)
   const [isTransferring, setIsTransferring] = useState(false)
-  const firestore = useFirestore()
+  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
 
-  const ridersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "users"), where("role", "==", "rider"), where("status", "==", "online"))
-  }, [firestore])
-  const { data: onlineRiders, isLoading } = useCollection(ridersQuery)
+  const { data: onlineRiders, isLoading } = useSupabaseCollection("users", {
+    filter: { column: "role", operator: "==", value: "rider" }
+  })
 
-  const activeOrdersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "orders"), where("status", "in", ["pending", "in-transit", "assigned", "picked-up"]))
-  }, [firestore])
-  const { data: activeOrders } = useCollection(activeOrdersQuery)
+  const { data: activeOrders } = useSupabaseCollection("orders", {
+    filter: { column: "status", operator: "in", value: ["pending", "in-transit", "assigned", "picked-up"] }
+  })
 
   const getRiderLoad = (riderId: string) => {
-    return activeOrders?.filter(o => o.riderId === riderId).length || 0
+    return activeOrders?.filter(o => o.rider_id === riderId).length || 0
   }
 
   const handleTransfer = async (newRiderId: string, newRiderName: string) => {
     if (newRiderId === currentRiderId) return
     setIsTransferring(true)
     try {
-      await updateDoc(doc(firestore, "orders", orderId), {
-        riderId: newRiderId,
-        riderName: newRiderName,
-        status: orderStatus === "pending" || !orderStatus ? "assigned" : orderStatus // keep in-transit if it already was
-      })
+      await supabase.from("orders").update({
+        rider_id: newRiderId,
+        rider_name: newRiderName,
+        status: orderStatus === "pending" || !orderStatus ? "assigned" : orderStatus
+      }).eq('id', orderId)
       toast({
         title: "Order Reassigned",
         description: `Order successfully transferred to ${newRiderName}.`,
@@ -129,7 +126,7 @@ export function RiderTransferPopover({ orderId, currentRiderId, currentRiderName
                   >
                     <div className="flex items-center gap-3">
                       <Avatar className="h-9 w-9 rounded-md border border-primary/10 shadow-sm">
-                        <AvatarImage src={rider.avatar} />
+                        <AvatarImage src={rider.avatar_url} />
                         <AvatarFallback className="text-xs font-bold rounded-md bg-primary/10 text-primary">
                           {rider.name?.charAt(0)}
                         </AvatarFallback>
@@ -140,7 +137,7 @@ export function RiderTransferPopover({ orderId, currentRiderId, currentRiderName
                           {isCurrent && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
                         </span>
                         <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">
-                          {rider.vehicleType || 'Bike'}
+                          {rider.vehicle_type || 'Bike'}
                         </span>
                       </div>
                     </div>

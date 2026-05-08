@@ -1,9 +1,9 @@
 
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
-import { collection, query, onSnapshot, where, orderBy, limit, Timestamp, addDoc, serverTimestamp } from "firebase/firestore"
-import { db } from "@/firebase/config"
+import { useMemo } from "react"
+import { useSupabaseCollection } from "@/supabase/use-collection"
+import { supabase } from "@/supabase/config"
 import { OrderStats } from "@/components/dashboard/order-stats"
 import { LiveOrderFeed } from "@/components/dashboard/live-order-feed"
 import { OperationsMap } from "@/components/dashboard/operations-map"
@@ -11,111 +11,69 @@ import { QuickActions } from "@/components/dashboard/quick-actions"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useToast } from "@/hooks/use-toast"
-import { Loader2, Database, AlertCircle, RefreshCcw } from "lucide-react"
+import { Loader2, Database, AlertCircle, RefreshCcw, PlusCircle } from "lucide-react"
 
 export default function MissionControlPage() {
-  const [orders, setOrders] = useState<any[]>([])
-  const [riders, setRiders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const { toast } = useToast()
 
-  // Real-time listener for Orders
-  useEffect(() => {
-    try {
-      // Ensure the collection name matches 'orders' as per screenshot
-      const ordersQuery = query(
-        collection(db, "orders"),
-        orderBy("createdAt", "desc"),
-        limit(50)
-      )
+  const { data: orders, isLoading: ordersLoading } = useSupabaseCollection("orders", {
+    orderBy: { column: "created_at", ascending: false },
+    limit: 50
+  })
 
-      const unsubscribe = onSnapshot(ordersQuery, (snapshot) => {
-        const ordersData = snapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        }))
-        setOrders(ordersData)
-        setLoading(false)
-        setError(null)
-      }, (err) => {
-        console.error("Firestore Orders Error:", err)
-        // If index is missing, it will throw an error. We handle it gracefully.
-        setError("Database link established. Awaiting first data sync...")
-        setLoading(false)
-      })
+  const { data: riders, isLoading: ridersLoading } = useSupabaseCollection("users", {
+    filter: [
+      { column: "role", operator: "==", value: "rider" },
+      { column: "status", operator: "==", value: "online" }
+    ]
+  })
 
-      return () => unsubscribe()
-    } catch (e) {
-      console.error("Query setup error:", e)
-      setLoading(false)
-    }
-  }, [])
-
-  // Real-time listener for Online Riders (from 'users' collection)
-  useEffect(() => {
-    const ridersQuery = query(
-      collection(db, "users"),
-      where("role", "==", "rider"),
-      where("status", "==", "online")
-    )
-
-    const unsubscribe = onSnapshot(ridersQuery, (snapshot) => {
-      const ridersData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }))
-      setRiders(ridersData)
-    }, (err) => {
-      console.warn("Riders listener suppressed or failed:", err)
-    })
-
-    return () => unsubscribe()
-  }, [])
+  const loading = ordersLoading || ridersLoading
+  const error = null // Simplified error handling
 
   // Calculate stats
   const stats = useMemo(() => {
-    const active = orders.filter(o => o.status === 'pending' || o.status === 'in-transit').length
-    const online = riders.length
-    const pending = orders.filter(o => o.status === 'pending').length
+    const ordersList = orders || []
+    const ridersList = riders || []
+    
+    const active = ordersList.filter(o => o.status === 'pending' || o.status === 'in-transit').length
+    const online = ridersList.length
+    const pending = ordersList.filter(o => o.status === 'pending').length
     
     const startOfDay = new Date()
     startOfDay.setHours(0, 0, 0, 0)
     
-    const todayRevenue = orders
+    const todayRevenue = ordersList
       .filter(o => {
-        const createdAt = o.createdAt?.toDate ? o.createdAt.toDate() : new Date(o.createdAt || Date.now())
+        const createdAt = new Date(o.created_at || Date.now())
         return createdAt >= startOfDay && o.status !== 'cancelled'
       })
-      .reduce((acc, curr) => acc + (Number(curr.finalTotal) || 0), 0)
+      .reduce((acc, curr) => acc + (Number(curr.final_total) || 0), 0)
 
     return { active, online, revenue: todayRevenue, pending }
   }, [orders, riders])
 
   const createSampleData = async () => {
     try {
-      await addDoc(collection(db, "orders"), {
-        bookingNo: `LODS-${Math.floor(1000 + Math.random() * 9000)}`,
-        customerName: "Jane Doe (Sample)",
-        merchant: "The Coffee House",
+      await supabase.from("orders").insert({
+        booking_no: `LODS-${Math.floor(1000 + Math.random() * 9000)}`,
+        customer_name: "Jane Doe (Sample)",
+        merchant_name: "The Coffee House",
         status: "pending",
-        finalTotal: 25.50,
-        createdAt: serverTimestamp(),
-        deliveryLocation: {
-          lat: 6.5244,
-          lng: 3.3792,
-          address: "123 Sample Street, Lagos"
-        }
+        final_total: 25.50,
+        created_at: new Date().toISOString(),
+        delivery_address: "123 Sample Street, Lagos"
+        // lat/lng removed for simplicity as schema changed
       })
       
       toast({
         title: "Success",
-        description: "Sample order initialized. Refreshing view...",
+        description: "Sample order initialized.",
       })
     } catch (e: any) {
       toast({
         title: "Initialization Failed",
-        description: e.message || "Could not add sample data. Please check Security Rules.",
+        description: e.message || "Could not add sample data.",
         variant: "destructive"
       })
     }
@@ -150,7 +108,7 @@ export default function MissionControlPage() {
         </div>
       </div>
 
-      {orders.length === 0 && !error && (
+      {(orders?.length === 0 || !orders) && !error && (
         <Card className="border-dashed border-2 bg-muted/30">
           <CardContent className="flex flex-col items-center py-12 text-center">
             <Database className="h-12 w-12 text-muted-foreground mb-4 opacity-50" />
@@ -190,7 +148,7 @@ export default function MissionControlPage() {
             <CardDescription>Most recent delivery activities</CardDescription>
           </CardHeader>
           <CardContent className="p-0">
-            <LiveOrderFeed orders={orders.slice(0, 8)} />
+            <LiveOrderFeed orders={(orders || []).slice(0, 8)} />
           </CardContent>
         </Card>
 
@@ -200,7 +158,7 @@ export default function MissionControlPage() {
             <CardDescription>Fleet & destination visualizer</CardDescription>
           </CardHeader>
           <CardContent className="p-0 h-[400px]">
-            <OperationsMap riders={riders} orders={orders} />
+            <OperationsMap riders={riders || []} orders={orders || []} />
           </CardContent>
         </Card>
 
@@ -212,4 +170,3 @@ export default function MissionControlPage() {
   )
 }
 
-import { PlusCircle } from "lucide-react"

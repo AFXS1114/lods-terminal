@@ -1,7 +1,6 @@
 "use client"
 
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase"
-import { collection, query, orderBy } from "firebase/firestore"
+import { useSupabaseCollection } from "@/supabase/use-collection"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookingForm } from "@/components/orders/booking-form"
 import { RiderTransferPopover } from "@/components/orders/rider-transfer-popover"
@@ -11,13 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 
 export default function OrdersPage() {
-  const firestore = useFirestore()
-  
-  const ordersQuery = useMemoFirebase(() => {
-    return query(collection(firestore, "orders"), orderBy("createdAt", "desc"))
-  }, [firestore])
-
-  const { data: orders, isLoading } = useCollection(ordersQuery)
+  const { data: orders, isLoading } = useSupabaseCollection("orders", {
+    orderBy: { column: "created_at", ascending: false }
+  })
 
   const getStatusVariant = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -86,18 +81,18 @@ export default function OrdersPage() {
                       orders.map((order) => (
                         <TableRow key={order.id} className="hover:bg-muted/30">
                           <TableCell className="font-mono text-xs font-bold text-primary">
-                            {order.bookingNo || 'LODS-XXXXX'}
+                            {order.booking_no || 'LODS-XXXXX'}
                           </TableCell>
-                          <TableCell className="text-sm font-medium">{order.customerName}</TableCell>
+                          <TableCell className="text-sm font-medium">{order.customer_name}</TableCell>
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
-                            {formatDate(order.createdAt)}
+                            {formatDate(order.created_at)}
                           </TableCell>
-                          <TableCell className="max-w-[150px] truncate text-xs">{order.deliveryLocation?.address || order.deliveryAddress}</TableCell>
+                          <TableCell className="max-w-[150px] truncate text-xs">{order.delivery_location?.address || order.delivery_address}</TableCell>
                           <TableCell className="w-[160px]">
                             <RiderTransferPopover 
                               orderId={order.id} 
-                              currentRiderId={order.riderId} 
-                              currentRiderName={order.riderName} 
+                              currentRiderId={order.rider_id} 
+                              currentRiderName={order.rider_name} 
                               orderStatus={order.status} 
                             />
                           </TableCell>
@@ -107,7 +102,7 @@ export default function OrdersPage() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-right font-bold text-sm">
-                            ₱{(Number(order.finalTotal) || 0).toFixed(2)}
+                            ₱{(Number(order.final_total) || 0).toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))

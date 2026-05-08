@@ -22,6 +22,10 @@ export function RiderDetailModal({ rider, onClose }: RiderDetailModalProps) {
   return (
     <Dialog open={!!rider} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl overflow-hidden p-0 gap-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Rider Details: {rider?.name}</DialogTitle>
+          <DialogDescription>Full operational profile and performance metrics for {rider?.name}.</DialogDescription>
+        </DialogHeader>
         <div className="h-32 bg-primary relative">
           <div className="absolute -bottom-12 left-8 border-4 border-background rounded-full overflow-hidden shadow-xl">
             <Avatar className="h-24 w-24">
