@@ -6,7 +6,7 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form"
 import * as z from "zod"
 import { useSupabaseCollection } from "@/supabase/use-collection"
 import { supabase } from "@/supabase/config"
-import { Sparkles, Loader2, Package, MapPin, Store, User, ShoppingCart, Plus, Trash2, Banknote, Truck, Navigation, Search } from "lucide-react"
+import { Sparkles, Loader2, Package, MapPin, Store, User, ShoppingCart, Plus, Trash2, Banknote, Truck, Navigation, Search, Grid, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -16,6 +16,14 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -61,6 +69,14 @@ export function BookingForm() {
 
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+
+  const merchantId = form.watch("merchantId")
+
+  const { data: menuItems, isLoading: loadingMenu } = useSupabaseCollection("menu_items", {
+    filter: merchantId ? { column: "merchant_id", operator: "==", value: merchantId } : undefined,
+    orderBy: { column: "name", ascending: true }
+  })
 
   const form = useForm<z.infer<typeof pabiliSchema>>({
     resolver: zodResolver(pabiliSchema),
@@ -126,6 +142,29 @@ export function BookingForm() {
     toast({
       title: "Rate Synchronized",
       description: `Delivery fee for ${rate.location} set to ₱${feeValue}.`,
+    })
+  }
+
+  const handleSelectItemFromMenu = (item: any) => {
+    // If first item is empty, update it. Otherwise append.
+    const currentItems = form.getValues("items")
+    if (currentItems.length === 1 && !currentItems[0].name && currentItems[0].price === 0) {
+      form.setValue(`items.0`, {
+        name: item.name,
+        qty: 1,
+        price: Number(item.price) || 0
+      })
+    } else {
+      append({
+        name: item.name,
+        qty: 1,
+        price: Number(item.price) || 0
+      })
+    }
+    
+    toast({
+      title: "Item Added",
+      description: `${item.name} added to manifest.`,
     })
   }
 
@@ -251,18 +290,83 @@ export function BookingForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Select Merchant</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="bg-background">
-                            <SelectValue placeholder={loadingMerchants ? "Fetching partners..." : "Select Merchant"} />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {merchants?.map(m => (
-                            <SelectItem key={m.id} value={m.id}>{m.name} ({m.category})</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select onValueChange={field.onChange} value={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="bg-background flex-1">
+                              <SelectValue placeholder={loadingMerchants ? "Fetching partners..." : "Select Merchant"} />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {merchants?.map(m => (
+                              <SelectItem key={m.id} value={m.id}>{m.name} ({m.category})</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+
+                        <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
+                          <DialogTrigger asChild>
+                            <Button 
+                              type="button" 
+                              variant="outline" 
+                              className="px-3 border-primary/20 hover:bg-primary/5"
+                              disabled={!merchantId || loadingMenu}
+                            >
+                              <Grid className="h-4 w-4 mr-2 text-primary" />
+                              {loadingMenu ? <Loader2 className="h-4 w-4 animate-spin" /> : "Browse Menu"}
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                            <DialogHeader>
+                              <DialogTitle className="flex items-center gap-2">
+                                <Store className="h-5 w-5 text-primary" />
+                                {merchants?.find(m => m.id === merchantId)?.name}'s Menu
+                              </DialogTitle>
+                              <DialogDescription>
+                                Click an item to add it to the order manifest.
+                              </DialogDescription>
+                            </DialogHeader>
+                            
+                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 py-4">
+                              {menuItems?.map((item) => (
+                                <Card 
+                                  key={item.id} 
+                                  className="group cursor-pointer hover:border-primary/50 transition-all hover:shadow-lg bg-muted/30 border-dashed"
+                                  onClick={() => handleSelectItemFromMenu(item)}
+                                >
+                                  <CardContent className="p-4 flex flex-col gap-3">
+                                    <div className="aspect-square rounded-lg bg-background flex items-center justify-center relative overflow-hidden group-hover:bg-primary/5 transition-colors">
+                                      {item.image_url ? (
+                                        <img src={item.image_url} alt={item.name} className="object-cover w-full h-full" />
+                                      ) : (
+                                        <Package className="h-8 w-8 text-muted-foreground opacity-20" />
+                                      )}
+                                      <div className="absolute inset-0 flex items-center justify-center bg-primary/0 group-hover:bg-primary/20 opacity-0 group-hover:opacity-100 transition-all">
+                                        <Plus className="h-8 w-8 text-primary" />
+                                      </div>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-bold text-sm line-clamp-1">{item.name}</h4>
+                                      <p className="text-[10px] text-muted-foreground line-clamp-2 min-h-[2.5em] mb-2">{item.description || "No description provided."}</p>
+                                      <div className="flex items-center justify-between mt-auto">
+                                        <span className="text-primary font-bold">₱{Number(item.price).toFixed(2)}</span>
+                                        <Badge variant="secondary" className="text-[9px] font-bold uppercase tracking-widest">Select</Badge>
+                                      </div>
+                                    </div>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                              {(!menuItems || menuItems.length === 0) && !loadingMenu && (
+                                <div className="col-span-full py-20 text-center space-y-3">
+                                  <Package className="h-12 w-12 text-muted-foreground mx-auto opacity-20" />
+                                  <p className="text-muted-foreground">No menu items listed for this merchant.</p>
+                                  <p className="text-xs text-muted-foreground/60">Digital menu synchronization in progress...</p>
+                                </div>
+                              )}
+                            </div>
+                          </DialogContent>
+                        </Dialog>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
