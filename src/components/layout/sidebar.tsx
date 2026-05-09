@@ -13,7 +13,8 @@ import {
   Map,
   Clock,
   Briefcase,
-  CalendarDays
+  CalendarDays,
+  User
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -36,6 +37,12 @@ const routes = [
     label: "Live Tracker",
     icon: Map,
     href: "/dashboard/tracker",
+    color: "text-accent",
+  },
+  {
+    label: "Clients (CRM)",
+    icon: User,
+    href: "/dashboard/clients",
     color: "text-accent",
   },
   {

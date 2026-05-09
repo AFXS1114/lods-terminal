@@ -39,14 +39,16 @@ const itemSchema = z.object({
 })
 
 const pabiliSchema = z.object({
+  clientId: z.string().optional(),
   customerName: z.string().min(2, "Customer name required"),
   customerEmail: z.string().email().optional().or(z.literal("")),
   customerPhone: z.string().optional(),
   merchantId: z.string().min(1, "Please select a merchant"),
   deliveryAddress: z.string().min(5, "Delivery address required"),
+  landmark: z.string().optional(),
   items: z.array(itemSchema).min(1, "Add at least one item"),
   riderId: z.string().min(1, "Please assign a rider"),
-  deliveryFee: z.coerce.number().default(49),
+  deliveryFee: z.coerce.number().min(0, "Min 0"),
 })
 
 export function BookingForm() {
@@ -70,11 +72,13 @@ export function BookingForm() {
   const form = useForm<z.infer<typeof pabiliSchema>>({
     resolver: zodResolver(pabiliSchema),
     defaultValues: {
+      clientId: "",
       customerName: "",
       customerEmail: "",
       customerPhone: "",
       merchantId: "",
       deliveryAddress: "",
+      landmark: "",
       items: [{ name: "", qty: 1, price: 0 }],
       riderId: "",
       deliveryFee: 49,
@@ -84,6 +88,8 @@ export function BookingForm() {
   const [addressSuggestions, setAddressSuggestions] = useState<any[]>([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [clientSearch, setClientSearch] = useState("")
+  const [showClientList, setShowClientList] = useState(false)
 
   const merchantId = form.watch("merchantId")
 
@@ -168,19 +174,51 @@ export function BookingForm() {
     })
   }
 
+  const handleSelectClient = (client: any) => {
+    form.setValue("clientId", client.id)
+    form.setValue("customerName", client.full_name)
+    form.setValue("customerPhone", client.phone || "")
+    form.setValue("deliveryAddress", client.address || "")
+    form.setValue("landmark", client.landmark || "")
+    setClientSearch(client.full_name)
+    setShowClientList(false)
+
+    // Loyalty Logic: 11th delivery is free (if count is 10)
+    if (client.loyalty_count === 10) {
+      form.setValue("deliveryFee", 0)
+      toast({
+        title: "LODS LOYALTY ACTIVATED",
+        description: "This client has reached their 11th delivery. Fee is FREE!",
+      })
+    }
+
+    toast({
+      title: "Client Selected",
+      description: `Logistics data for ${client.full_name} loaded successfully.`,
+    })
+  }
+
+  const filteredClients = clients?.filter(c => 
+    c.full_name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+    c.phone?.includes(clientSearch)
+  ).slice(0, 5) || []
+
   async function onSubmit(values: z.infer<typeof pabiliSchema>) {
     const selectedMerchant = merchants?.find(m => m.id === values.merchantId)
     const selectedRider = riders?.find(r => r.id === values.riderId)
+    const selectedClient = clients?.find(c => c.id === values.clientId)
 
     const { error } = await supabase.from("orders").insert({
       booking_no: `PABILI-${Math.floor(10000 + Math.random() * 90000)}`,
       service_type: "pabili",
+      client_id: values.clientId || null,
       customer_name: values.customerName,
       customer_email: values.customerEmail,
       customer_phone: values.customerPhone,
       merchant_id: values.merchantId,
       merchant_name: selectedMerchant?.name || "Generic Merchant",
       delivery_address: values.deliveryAddress,
+      landmark: values.landmark,
       items: values.items.map(item => ({
         ...item,
         total: item.qty * item.price
@@ -204,11 +242,22 @@ export function BookingForm() {
       return
     }
 
+    // Update Client Loyalty if a client was selected
+    if (selectedClient) {
+      const newCount = selectedClient.loyalty_count === 10 ? 0 : (selectedClient.loyalty_count + 1)
+      await supabase.from("clients").update({
+        loyalty_count: newCount,
+        total_orders: (selectedClient.total_orders || 0) + 1,
+        updated_at: new Date().toISOString()
+      }).eq("id", selectedClient.id)
+    }
+
     toast({
       title: "Pabili Order Deployed",
       description: `Order successfully assigned to ${selectedRider?.name || 'rider'}.`,
     })
     form.reset()
+    setClientSearch("")
   }
 
   return (
@@ -240,11 +289,61 @@ export function BookingForm() {
                   control={form.control}
                   name="customerName"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                    <FormItem className="relative">
+                      <FormLabel className="flex justify-between items-center">
+                        Full Name 
+                        {form.watch("clientId") && (
+                          <Badge variant="secondary" className="text-[9px] bg-accent/20 text-accent font-bold animate-pulse">
+                            <Gift className="h-2.5 w-2.5 mr-1" /> LOYALTY ACCOUNT
+                          </Badge>
+                        )}
+                      </FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} className="bg-background" />
+                        <div className="relative">
+                          <Input 
+                            placeholder="Type to search clients..." 
+                            {...field} 
+                            className="bg-background" 
+                            onChange={(e) => {
+                              field.onChange(e)
+                              setClientSearch(e.target.value)
+                              setShowClientList(true)
+                              if (form.getValues("clientId")) form.setValue("clientId", "")
+                            }}
+                            onFocus={() => setShowClientList(true)}
+                            onBlur={() => setTimeout(() => setShowClientList(false), 200)}
+                            autoComplete="off"
+                          />
+                          <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
+                        </div>
                       </FormControl>
+                      {showClientList && clientSearch.length > 0 && filteredClients.length > 0 && (
+                        <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
+                          {filteredClients.map((client) => (
+                            <div 
+                              key={client.id} 
+                              className="p-3 hover:bg-muted cursor-pointer flex items-center justify-between border-b last:border-b-0 group"
+                              onMouseDown={() => handleSelectClient(client)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary font-bold">
+                                  {client.full_name.charAt(0)}
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-bold">{client.full_name}</span>
+                                  <span className="text-[10px] text-muted-foreground">{client.phone || "No Phone"}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-bold text-muted-foreground uppercase">{client.loyalty_count}/11</span>
+                                <div className="h-1.5 w-12 bg-muted rounded-full overflow-hidden">
+                                  <div className="h-full bg-primary" style={{ width: `${(client.loyalty_count / 11) * 100}%` }} />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       <FormMessage />
                     </FormItem>
                   )}
@@ -424,6 +523,19 @@ export function BookingForm() {
                           ))}
                         </div>
                       )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="landmark"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Landmark (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Green gate, near church..." {...field} className="bg-background" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
