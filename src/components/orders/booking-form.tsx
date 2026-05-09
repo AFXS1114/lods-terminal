@@ -360,6 +360,7 @@ export function BookingForm() {
                                 <div className="col-span-full py-20 text-center space-y-3">
                                   <Package className="h-12 w-12 text-muted-foreground mx-auto opacity-20" />
                                   <p className="text-muted-foreground">No menu items listed for this merchant.</p>
+                                  <p className="text-[10px] text-muted-foreground/40 font-mono">Searching for Merchant ID: {merchantId}</p>
                                   <p className="text-xs text-muted-foreground/60">Digital menu synchronization in progress...</p>
                                 </div>
                               )}
