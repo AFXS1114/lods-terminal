@@ -87,7 +87,7 @@ export function BookingForm() {
 
   const merchantId = form.watch("merchantId")
 
-  const { data: menuItems, isLoading: loadingMenu } = useSupabaseCollection("menu_items", {
+  const { data: menuItems, isLoading: loadingMenu, error: menuError } = useSupabaseCollection("menu_items", {
     filter: merchantId ? { column: "merchant_id", operator: "==", value: merchantId } : undefined,
     orderBy: { column: "name", ascending: true }
   })
@@ -356,7 +356,15 @@ export function BookingForm() {
                                   </CardContent>
                                 </Card>
                               ))}
-                              {(!menuItems || menuItems.length === 0) && !loadingMenu && (
+                              {menuError && (
+                                <div className="col-span-full py-10 text-center bg-destructive/10 rounded-lg border border-destructive/20">
+                                  <p className="text-destructive font-bold">Fetch Error</p>
+                                  <p className="text-[10px] text-destructive/70">{menuError.message}</p>
+                                  <p className="text-[10px] text-muted-foreground mt-2">Code: {menuError.code}</p>
+                                </div>
+                              )}
+
+                              {(!menuItems || menuItems.length === 0) && !loadingMenu && !menuError && (
                                 <div className="col-span-full py-20 text-center space-y-3">
                                   <Package className="h-12 w-12 text-muted-foreground mx-auto opacity-20" />
                                   <p className="text-muted-foreground">No menu items listed for this merchant.</p>
