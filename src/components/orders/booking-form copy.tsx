@@ -6,25 +6,7 @@ import { useForm, useFieldArray, useWatch } from "react-hook-form"
 import * as z from "zod"
 import { useSupabaseCollection } from "@/supabase/use-collection"
 import { supabase } from "@/supabase/config"
-// import { Sparkles, Loader2, Package, MapPin, Store, User, ShoppingCart, Plus, Trash2, Banknote, Truck, Navigation, Search, Grid, Check } from "lucide-react"
-import {
-  Sparkles,
-  Loader2,
-  Package,
-  MapPin,
-  Store,
-  User,
-  ShoppingCart,
-  Plus,
-  Trash2,
-  Banknote,
-  Truck,
-  Navigation,
-  Search,
-  Grid,
-  Check,
-  Gift
-} from "lucide-react"
+import { Sparkles, Loader2, Package, MapPin, Store, User, ShoppingCart, Plus, Trash2, Banknote, Truck, Navigation, Search, Grid, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Form,
@@ -83,19 +65,8 @@ export function BookingForm() {
     // status filter handled in component logic or query if possible
   })
 
-  const { data: rates } = useSupabaseCollection<any>("delivery_rates", {
+  const { data: rates } = useSupabaseCollection("delivery_rates", {
     orderBy: { column: "location", ascending: true }
-  })
-
-  // ✅ FIXED: clients collection was missing
-  const {
-    data: clients,
-    isLoading: loadingClients,
-  } = useSupabaseCollection<any>("clients", {
-    orderBy: {
-      column: "full_name",
-      ascending: true,
-    },
   })
 
   const form = useForm<z.infer<typeof pabiliSchema>>({
@@ -148,7 +119,7 @@ export function BookingForm() {
 
   useEffect(() => {
     if (deliveryAddressWatch && rates) {
-      const filtered = rates.filter(rate =>
+      const filtered = rates.filter(rate => 
         rate.location?.toLowerCase().includes(deliveryAddressWatch.toLowerCase())
       ).slice(0, 5)
       setAddressSuggestions(filtered)
@@ -196,7 +167,7 @@ export function BookingForm() {
         price: Number(item.price) || 0
       })
     }
-
+    
     toast({
       title: "Item Added",
       description: `${item.name} added to manifest.`,
@@ -227,22 +198,15 @@ export function BookingForm() {
     })
   }
 
-  const filteredClients =
-    clients?.filter((c: any) => {
-      return (
-        c.full_name
-          ?.toLowerCase()
-          .includes(clientSearch.toLowerCase()) ||
-        c.phone?.includes(clientSearch)
-      )
-    }).slice(0, 5) || []
+  const filteredClients = clients?.filter(c => 
+    c.full_name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+    c.phone?.includes(clientSearch)
+  ).slice(0, 5) || []
 
   async function onSubmit(values: z.infer<typeof pabiliSchema>) {
     const selectedMerchant = merchants?.find(m => m.id === values.merchantId)
     const selectedRider = riders?.find(r => r.id === values.riderId)
-    const selectedClient = clients?.find(
-      (c: any) => c.id === values.clientId
-    )
+    const selectedClient = clients?.find(c => c.id === values.clientId)
 
     const { error } = await supabase.from("orders").insert({
       booking_no: `PABILI-${Math.floor(10000 + Math.random() * 90000)}`,
@@ -311,7 +275,7 @@ export function BookingForm() {
           </Badge>
         </div>
       </CardHeader>
-
+      
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="p-0">
           <CardContent className="p-6 space-y-8">
@@ -327,7 +291,7 @@ export function BookingForm() {
                   render={({ field }) => (
                     <FormItem className="relative">
                       <FormLabel className="flex justify-between items-center">
-                        Full Name
+                        Full Name 
                         {form.watch("clientId") && (
                           <Badge variant="secondary" className="text-[9px] bg-accent/20 text-accent font-bold animate-pulse">
                             <Gift className="h-2.5 w-2.5 mr-1" /> LOYALTY ACCOUNT
@@ -336,10 +300,10 @@ export function BookingForm() {
                       </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input
-                            placeholder="Type to search clients..."
-                            {...field}
-                            className="bg-background"
+                          <Input 
+                            placeholder="Type to search clients..." 
+                            {...field} 
+                            className="bg-background" 
                             onChange={(e) => {
                               field.onChange(e)
                               setClientSearch(e.target.value)
@@ -356,8 +320,8 @@ export function BookingForm() {
                       {showClientList && clientSearch.length > 0 && filteredClients.length > 0 && (
                         <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95">
                           {filteredClients.map((client) => (
-                            <div
-                              key={client.id}
+                            <div 
+                              key={client.id} 
                               className="p-3 hover:bg-muted cursor-pointer flex items-center justify-between border-b last:border-b-0 group"
                               onMouseDown={() => handleSelectClient(client)}
                             >
@@ -441,9 +405,9 @@ export function BookingForm() {
 
                         <Dialog open={isMenuOpen} onOpenChange={setIsMenuOpen}>
                           <DialogTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
+                            <Button 
+                              type="button" 
+                              variant="outline" 
                               className="px-3 border-primary/20 hover:bg-primary/5"
                               disabled={!merchantId || loadingMenu}
                             >
@@ -461,11 +425,11 @@ export function BookingForm() {
                                 Click an item to add it to the order manifest.
                               </DialogDescription>
                             </DialogHeader>
-
+                            
                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 py-4">
                               {menuItems?.map((item) => (
-                                <Card
-                                  key={item.id}
+                                <Card 
+                                  key={item.id} 
                                   className="group cursor-pointer hover:border-primary/50 transition-all hover:shadow-lg bg-muted/30 border-dashed"
                                   onClick={() => handleSelectItemFromMenu(item)}
                                 >
@@ -523,10 +487,10 @@ export function BookingForm() {
                       <FormLabel>Ship To Address</FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Input
-                            placeholder="Full street address, landmark"
-                            {...field}
-                            className="bg-background"
+                          <Input 
+                            placeholder="Full street address, landmark" 
+                            {...field} 
+                            className="bg-background" 
                             onFocus={() => setShowSuggestions(true)}
                             onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                             autoComplete="off"
@@ -537,8 +501,8 @@ export function BookingForm() {
                       {showSuggestions && addressSuggestions.length > 0 && (
                         <div className="absolute z-50 w-full mt-1 bg-background border rounded-lg shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                           {addressSuggestions.map((rate) => (
-                            <div
-                              key={rate.id}
+                            <div 
+                              key={rate.id} 
                               className="p-3 hover:bg-muted cursor-pointer flex items-center justify-between border-b last:border-b-0 group transition-colors"
                               onMouseDown={() => handleSelectSuggestion(rate)}
                             >
@@ -585,10 +549,10 @@ export function BookingForm() {
                 <div className="flex items-center gap-2 font-bold text-xs uppercase tracking-widest text-muted-foreground">
                   <Package className="h-4 w-4 text-primary" /> Order Manifest
                 </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm" 
                   onClick={() => append({ name: "", qty: 1, price: 0 })}
                   className="h-7 text-[10px] font-bold uppercase border-primary/20 hover:bg-primary/10"
                 >
@@ -644,10 +608,10 @@ export function BookingForm() {
                       <div className="flex-1 text-right font-bold text-xs text-primary bg-background h-full flex items-center justify-end px-2 rounded border border-primary/5">
                         ₱{(itemsWatch[index]?.qty * itemsWatch[index]?.price || 0).toFixed(2)}
                       </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
+                      <Button 
+                        type="button" 
+                        variant="ghost" 
+                        size="icon" 
                         className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => remove(index)}
                         disabled={fields.length === 1}
@@ -661,33 +625,33 @@ export function BookingForm() {
                 <Separator className="my-4 bg-primary/10" />
 
                 <div className="flex flex-col items-end space-y-2">
-                  <div className="flex items-center gap-10 text-sm">
-                    <span className="text-muted-foreground">Items Subtotal:</span>
-                    <span className="font-bold">₱{subtotal.toFixed(2)}</span>
-                  </div>
-                  <div className="flex items-center gap-4 text-sm w-48">
-                    <FormField
-                      control={form.control}
-                      name="deliveryFee"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center gap-3 space-y-0 w-full">
-                          <FormLabel className="text-muted-foreground text-sm whitespace-nowrap">Delivery Fee:</FormLabel>
-                          <FormControl>
-                            <Input
-                              type="number"
-                              {...field}
-                              value={isNaN(field.value) ? "" : field.value}
-                              className="bg-background h-8 font-mono text-right font-bold"
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="flex items-center gap-10 text-xl font-bold text-primary pt-2">
-                    <span>Total Cost:</span>
-                    <span>₱{grandTotal.toFixed(2)}</span>
-                  </div>
+                   <div className="flex items-center gap-10 text-sm">
+                      <span className="text-muted-foreground">Items Subtotal:</span>
+                      <span className="font-bold">₱{subtotal.toFixed(2)}</span>
+                   </div>
+                   <div className="flex items-center gap-4 text-sm w-48">
+                      <FormField
+                        control={form.control}
+                        name="deliveryFee"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center gap-3 space-y-0 w-full">
+                            <FormLabel className="text-muted-foreground text-sm whitespace-nowrap">Delivery Fee:</FormLabel>
+                            <FormControl>
+                              <Input 
+                                type="number" 
+                                {...field} 
+                                value={isNaN(field.value) ? "" : field.value}
+                                className="bg-background h-8 font-mono text-right font-bold" 
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+                   </div>
+                   <div className="flex items-center gap-10 text-xl font-bold text-primary pt-2">
+                      <span>Total Cost:</span>
+                      <span>₱{grandTotal.toFixed(2)}</span>
+                   </div>
                 </div>
               </div>
             </div>
@@ -737,18 +701,18 @@ export function BookingForm() {
                     )}
                   />
                 </div>
-
+                
                 <div className="flex flex-col items-center justify-center p-4 bg-background rounded-xl border border-accent/10 w-full md:w-64 h-24">
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mb-1">Dispatch Queue</p>
-                  <div className="flex items-baseline gap-1">
-                    <span className="text-3xl font-black text-accent">{riders?.length || 0}</span>
-                    <span className="text-xs font-bold text-muted-foreground">Riders Live</span>
-                  </div>
-                  <div className="flex gap-1 mt-2">
-                    {[1, 2, 3, 4].map(i => (
-                      <div key={i} className={cn("h-1 w-8 rounded-full", (riders?.length || 0) >= i ? "bg-accent" : "bg-muted")} />
-                    ))}
-                  </div>
+                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-tighter mb-1">Dispatch Queue</p>
+                   <div className="flex items-baseline gap-1">
+                      <span className="text-3xl font-black text-accent">{riders?.length || 0}</span>
+                      <span className="text-xs font-bold text-muted-foreground">Riders Live</span>
+                   </div>
+                   <div className="flex gap-1 mt-2">
+                      {[1,2,3,4].map(i => (
+                        <div key={i} className={cn("h-1 w-8 rounded-full", (riders?.length || 0) >= i ? "bg-accent" : "bg-muted")} />
+                      ))}
+                   </div>
                 </div>
               </div>
             </div>
@@ -756,7 +720,7 @@ export function BookingForm() {
 
           <CardFooter className="bg-muted/30 p-6 border-t flex justify-between items-center">
             <div className="flex items-center gap-2 text-xs text-muted-foreground font-medium">
-              <Banknote className="h-4 w-4" /> Final Settlement: <span className="text-primary font-bold">₱{grandTotal.toFixed(2)}</span>
+               <Banknote className="h-4 w-4" /> Final Settlement: <span className="text-primary font-bold">₱{grandTotal.toFixed(2)}</span>
             </div>
             <div className="flex gap-3">
               <Button type="button" variant="ghost" onClick={() => form.reset()} className="h-10 px-6">Discard</Button>
