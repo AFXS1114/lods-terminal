@@ -7,6 +7,7 @@ export interface UseSupabaseCollectionResult<T> {
   data: T[] | null;
   isLoading: boolean;
   error: any | null;
+  refetch: () => Promise<void>;
 }
 
 /**
@@ -95,5 +96,5 @@ export function useSupabaseCollection<T = any>(
     };
   }, [table, fetchData]);
 
-  return { data, isLoading, error };
+  return { data, isLoading, error, refetch: fetchData };
 }

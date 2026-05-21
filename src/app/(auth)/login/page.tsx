@@ -90,7 +90,7 @@ export default function LoginPage() {
               Manager Access
             </CardTitle>
             <CardDescription>
-              Enter credentials to access Mission Control
+              Enter credentials to access the Dashboard
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

@@ -94,7 +94,7 @@ export default function MissionControlPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-primary">Mission Control</h2>
+          <h2 className="text-3xl font-bold tracking-tight text-primary">Dashboard</h2>
           <p className="text-muted-foreground">Logistics Real-time Operations Center</p>
         </div>
         <div className="flex items-center gap-4">

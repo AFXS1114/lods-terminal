@@ -1,7 +1,9 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useSupabaseCollection } from "@/supabase/use-collection"
+import { supabase } from "@/supabase/config"
+import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
@@ -20,10 +22,13 @@ export default function DtrPage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined)
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all")
+  const { toast } = useToast()
 
   const { data: allRecordsData, isLoading } = useSupabaseCollection("dtr", {
     orderBy: { column: "time_in", ascending: false }
   })
+
+  const { data: schedules } = useSupabaseCollection("schedules")
 
   const allRecords = useMemo(() => {
     return (allRecordsData || []).map(r => ({
@@ -48,18 +53,59 @@ export default function DtrPage() {
     } catch { return 'Invalid' }
   }
 
+  // Check if the shift's scheduled end time has passed but time_out not yet written
+  const isShiftOnHold = (record: any) => {
+    if (record.time_out) return false // already completed
+    if (!record.time_in) return false
+    const recordDateObj = new Date(record.time_in)
+    const year = recordDateObj.getFullYear()
+    const month = String(recordDateObj.getMonth() + 1).padStart(2, '0')
+    const day = String(recordDateObj.getDate()).padStart(2, '0')
+    const recordDateStr = `${year}-${month}-${day}`
+    const schedule = schedules?.find((s: any) => s.user_id === record.user_id && s.date === recordDateStr)
+    if (!schedule || !schedule.shift_end) return false
+    const [endHours, endMinutes] = schedule.shift_end.split(':').map(Number)
+    const endDutyTime = new Date(recordDateObj)
+    endDutyTime.setHours(endHours, endMinutes, 0, 0)
+    if (schedule.shift_start && schedule.shift_end < schedule.shift_start) {
+      endDutyTime.setDate(endDutyTime.getDate() + 1)
+    }
+    return new Date() > endDutyTime
+  }
+
   const calculateDuration = (timeIn: any, timeOut: any) => {
-    if (!timeIn) return 'N/A'
+    if (!timeIn || !timeOut) return '--'
     try {
       const start = new Date(timeIn)
-      const end = timeOut ? new Date(timeOut) : new Date()
+      const end = new Date(timeOut)
       const diffMs = end.getTime() - start.getTime()
-      if (diffMs < 0) return '0h 0m'
+      if (diffMs < 0) return '0m'
       const hours = Math.floor(diffMs / (1000 * 60 * 60))
       const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60))
       if (hours === 0) return `${minutes}m`
       return `${hours}h ${minutes}m`
     } catch { return 'Error' }
+  }
+
+  // Determine shift status based on schedule window vs current time
+  const getShiftStatus = (record: any): 'onhold' | 'running' | 'completed' => {
+    if (record.time_out) return 'completed'
+    if (!record.time_in) return 'onhold'
+    const recordDateObj = new Date(record.time_in)
+    const year = recordDateObj.getFullYear()
+    const month = String(recordDateObj.getMonth() + 1).padStart(2, '0')
+    const day = String(recordDateObj.getDate()).padStart(2, '0')
+    const recordDateStr = `${year}-${month}-${day}`
+    const schedule = schedules?.find((s: any) => s.user_id === record.user_id && s.date === recordDateStr)
+    if (!schedule) return 'running' // no schedule set — treat as running
+    const now = new Date()
+    if (schedule.shift_start) {
+      const [sH, sM] = schedule.shift_start.split(':').map(Number)
+      const startTime = new Date(recordDateObj)
+      startTime.setHours(sH, sM, 0, 0)
+      if (now < startTime) return 'onhold' // current time is before shift start
+    }
+    return 'running' // within or past shift window but no time_out yet
   }
 
   const filteredRecords = allRecords.filter(r => {
@@ -72,7 +118,31 @@ export default function DtrPage() {
         matchesDate = recordDate.toDateString() === dateFilter.toDateString()
       } catch { matchesDate = false }
     }
-    return matchesSearch && matchesRole && matchesDate
+
+    // Schedule and End Duty checks
+    let matchesSchedule = true
+    if (r.time_in) {
+      const recordDateObj = new Date(r.time_in)
+      const recordDateStr = new Date(recordDateObj.getTime() - recordDateObj.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+      const schedule = schedules?.find((s: any) => s.user_id === r.user_id && s.date === recordDateStr)
+
+      // Rule 1: Display only when work schedule is set
+      if (!schedule) matchesSchedule = false
+
+      // Rule 2: Clear if set end duty is reached
+      if (schedule && schedule.shift_end) {
+        const now = new Date()
+        const [hours, minutes] = schedule.shift_end.split(':').map(Number)
+        const endDutyTime = new Date(recordDateObj)
+        endDutyTime.setHours(hours, minutes, 0, 0)
+
+        if (now > endDutyTime) {
+          matchesSchedule = false // Clear if past end duty
+        }
+      }
+    }
+
+    return matchesSearch && matchesRole && matchesDate && matchesSchedule
   })
 
   const datesWithRecords = useMemo(() => {
@@ -84,6 +154,55 @@ export default function DtrPage() {
   const activeShifts = allRecords.filter(r => !r.time_out).length
   const activeRiders = allRecords.filter(r => r.role === "rider" && !r.time_out).length
   const activeTellers = allRecords.filter(r => r.role === "teller" && !r.time_out).length
+
+  useEffect(() => {
+    const autoEndShifts = async () => {
+      if (!allRecordsData || !schedules) return
+
+      const now = new Date()
+      
+      for (const record of allRecordsData) {
+        if (!record.time_out && record.time_in) {
+          const recordDateObj = new Date(record.time_in)
+          const recordDateStr = new Date(recordDateObj.getTime() - recordDateObj.getTimezoneOffset() * 60000).toISOString().split('T')[0]
+          
+          const schedule = schedules.find((s: any) => s.user_id === record.user_id && s.date === recordDateStr)
+          
+          if (schedule && schedule.shift_end) {
+            const [endHours, endMinutes] = schedule.shift_end.split(':').map(Number)
+            const endDutyTime = new Date(recordDateObj)
+            endDutyTime.setHours(endHours, endMinutes, 0, 0)
+            
+            if (schedule.shift_start && schedule.shift_end < schedule.shift_start) {
+              endDutyTime.setDate(endDutyTime.getDate() + 1)
+            }
+            
+            if (now > endDutyTime) {
+              console.log(`Auto-ending shift for ${record.user_name}`)
+              
+              const { data: userData } = await supabase.from('users').select('cash_advance').eq('id', record.user_id).single()
+              
+              await supabase.from('dtr').update({
+                time_out: now.toISOString(),
+                final_cash_advance: userData?.cash_advance || 0
+              }).eq('id', record.id)
+              
+              await supabase.from('users').update({
+                status: "offline",
+                last_time_in: null,
+                active_dtr_id: null,
+                cash_advance: 0
+              }).eq('id', record.user_id)
+              
+              toast({ title: "Shift Auto-Terminated", description: `${record.user_name}'s shift reached its end time.` })
+            }
+          }
+        }
+      }
+    }
+    
+    autoEndShifts()
+  }, [allRecordsData, schedules, toast])
 
   return (
     <div className="space-y-6">
@@ -294,6 +413,10 @@ export default function DtrPage() {
                         {record.time_out ? (
                           <Badge variant="secondary" className="bg-muted text-muted-foreground hover:bg-muted">
                             Completed
+                          </Badge>
+                        ) : getShiftStatus(record) === 'onhold' ? (
+                          <Badge variant="outline" className="border-amber-400 text-amber-600 bg-amber-50">
+                            <span className="h-2 w-2 rounded-full bg-amber-400 mr-1.5 inline-block" /> Standby
                           </Badge>
                         ) : (
                           <Badge variant="default" className="bg-green-500 hover:bg-green-600 animate-pulse">

@@ -141,30 +141,52 @@ export function AssignShiftDialog({
 
       // 2. If today + active shift → auto Time In via DTR
       if (isAssigningToday && isActiveShift) {
-        const timeInValue = buildTimeIn()
+        // Skip auto-time-in if user already has an active DTR for today
+        const { data: existingDtr } = await supabase
+          .from("dtr")
+          .select("id")
+          .eq("user_id", user.id)
+          .eq("date", dateStr)
+          .is("time_out", null)
+          .maybeSingle()
 
-        const dtrPayload: Record<string, any> = {
-          user_id: user.id,
-          user_name: user.name,
-          role: user.role,
-          time_in: timeInValue,
-          time_out: null,
-          date: dateStr,
-          shift_type: selectedShift,
-          shift_start: shiftStart,
-          shift_end: shiftEnd,
+        if (!existingDtr) {
+          const timeInValue = buildTimeIn()
+
+          const dtrPayload: Record<string, any> = {
+            user_id: user.id,
+            user_name: user.name,
+            role: user.role,
+            time_in: timeInValue,
+            time_out: null,
+            date: dateStr,
+            shift_type: selectedShift,
+            shift_start: shiftStart,
+            shift_end: shiftEnd,
+          }
+
+          const { data: dtrData, error: dtrError } = await supabase.from("dtr").insert(dtrPayload).select().single()
+          if (dtrError) throw dtrError
+
+          const userPayload: Record<string, any> = {
+            status: "online",
+            last_time_in: timeInValue,
+            active_dtr_id: dtrData.id,
+            cash_advance: 0,
+          }
+          if (user.role === "rider") userPayload.budget_on_hand = 0
+
+          console.log("Updating user with payload:", JSON.stringify(userPayload), "for user:", user.id)
+
+          const { data: userData, error: userError, status, statusText } = await supabase
+            .from("users")
+            .update(userPayload)
+            .eq('id', user.id)
+            .select()
+
+          console.log("User update result:", { userData, userError, status, statusText })
+          if (userError) console.error("User update error details:", JSON.stringify(userError), "message:", userError.message, "code:", userError.code, "details:", userError.details)
         }
-
-        const { data: dtrData, error: dtrError } = await supabase.from("dtr").insert(dtrPayload).select().single()
-        if (dtrError) throw dtrError
-
-        await supabase.from("users").update({
-          status: "online",
-          last_time_in: timeInValue,
-          active_dtr_id: dtrData.id,
-          cash_advance: 0,
-          ...(user.role === "rider" ? { budget_on_hand: 0 } : {}),
-        }).eq('id', user.id)
 
         const modeLabel =
           autoStartMode === "now"

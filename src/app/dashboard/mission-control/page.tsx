@@ -25,15 +25,15 @@ export default function MissionControlPage() {
   const stats = useMemo(() => {
     const ordersList = orders || []
     const ridersList = riders || []
-    
+
     const active = ordersList.filter(o => o.status === 'pending' || o.status === 'in-transit').length
     const online = ridersList.length
     const pending = ordersList.filter(o => o.status === 'pending').length
-    
+
     const todayRevenue = ordersList
       .filter(o => o.status !== 'cancelled')
       .reduce((acc, curr) => acc + (Number(curr.final_total) || 0), 0)
- 
+
     return { active, online, revenue: todayRevenue, pending }
   }, [orders, riders])
 
@@ -49,21 +49,21 @@ export default function MissionControlPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-primary">Mission Control</h2>
-          <p className="text-muted-foreground">Logistics Real-time Operations Center</p>
+          <h2 className="text-3xl font-bold tracking-tight text-primary">Dashboard</h2>
+          <p className="text-muted-foreground">LODS Real-time Operations Center</p>
         </div>
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={() => window.location.reload()}>
-             <RefreshCcw className="h-4 w-4 mr-2" /> Live Sync
+            <RefreshCcw className="h-4 w-4 mr-2" /> Live Sync
           </Button>
         </div>
       </div>
 
-      <OrderStats 
-        activeOrders={stats.active} 
-        onlineRiders={stats.online} 
-        todayRevenue={stats.revenue} 
-        pendingBookings={stats.pending} 
+      <OrderStats
+        activeOrders={stats.active}
+        onlineRiders={stats.online}
+        todayRevenue={stats.revenue}
+        pendingBookings={stats.pending}
       />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-12">

@@ -28,22 +28,22 @@ export function QuickActions() {
         </CardHeader>
         <CardContent className="grid gap-2">
           <Button variant="outline" asChild className="justify-start hover:border-primary/50 hover:bg-primary/5 h-9">
-            <Link href="/partners">
+            <Link href="/dashboard/partners">
               <Store className="mr-2 h-4 w-4 text-primary" /> Partner Network
             </Link>
           </Button>
           <Button variant="outline" asChild className="justify-start hover:border-primary/50 hover:bg-primary/5 h-9">
-            <Link href="/riders">
+            <Link href="/dashboard/riders">
               <Users className="mr-2 h-4 w-4 text-primary" /> Rider Registry
             </Link>
           </Button>
           <Button variant="outline" asChild className="justify-start hover:border-primary/50 hover:bg-primary/5 h-9">
-            <Link href="/tracker">
+            <Link href="/dashboard/tracker">
               <Map className="mr-2 h-4 w-4 text-primary" /> Live Tracking
             </Link>
           </Button>
           <Button variant="outline" asChild className="justify-start hover:border-primary/50 hover:bg-primary/5 h-9">
-            <Link href="/settings">
+            <Link href="/dashboard/settings">
               <Settings className="mr-2 h-4 w-4 text-primary" /> System Config
             </Link>
           </Button>

@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Search, Plus, Wallet, PlayCircle, StopCircle, RefreshCcw, AlertTriangle, Briefcase } from "lucide-react"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
@@ -22,12 +22,18 @@ export function TellerList({ tellers }: TellerListProps) {
   const [cashAmount, setCashAmount] = useState<string>("")
   const [isResetting, setIsResetting] = useState(false)
   
-  // const firestore = useFirestore() // Removed
   const { toast } = useToast()
 
   const filteredTellers = tellers.filter(t => 
     t.name?.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  const isOnline = (teller: any) => teller.status && teller.status !== 'offline'
+
+  const formatTime = (isoString: string | null | undefined) => {
+    if (!isoString) return null
+    return new Date(isoString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
 
   const handleTimeIn = async (teller: any) => {
     try {
@@ -37,7 +43,7 @@ export function TellerList({ tellers }: TellerListProps) {
         role: "teller",
         time_in: new Date().toISOString(),
         time_out: null,
-        date: new Date().toISOString().split('T')[0]
+        date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
       }).select().single()
 
       if (dtrError) throw dtrError
@@ -97,7 +103,7 @@ export function TellerList({ tellers }: TellerListProps) {
           amount: Number(cashAmount),
           type: "cash_advance",
           timestamp: new Date().toISOString(),
-          date: new Date().toISOString().split('T')[0]
+          date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
         })
       }
 
@@ -174,52 +180,68 @@ export function TellerList({ tellers }: TellerListProps) {
         <Table>
           <TableHeader className="bg-muted/30">
             <TableRow>
-              <TableHead>Teller Profile</TableHead>
+              <TableHead>Teller Name</TableHead>
               <TableHead>Duty Status</TableHead>
-              <TableHead>Shift Start</TableHead>
-              <TableHead>Cash Advances</TableHead>
+              <TableHead>Time-In</TableHead>
+              <TableHead>Time-Out</TableHead>
+              <TableHead>Cash Advance</TableHead>
+              <TableHead className="text-right">Action</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filteredTellers.map((teller) => (
               <TableRow key={teller.id} className="hover:bg-muted/10 transition-colors group">
+                {/* Teller Name */}
                 <TableCell>
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-9 w-9 border border-primary/20">
-                      <AvatarImage src={teller.avatar_url} />
-                      <AvatarFallback className="bg-primary/10 text-primary font-bold">{teller.name?.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div className="flex flex-col">
-                      <span className="font-semibold text-sm">{teller.name}</span>
-                      <span className="text-[10px] text-muted-foreground uppercase">{teller.phone || 'NO CONTACT'}</span>
-                    </div>
-                  </div>
+                  <span className="font-semibold text-sm">{teller.name}</span>
                 </TableCell>
+
+                {/* Duty Status */}
                 <TableCell>
-                  {!teller.status || teller.status === 'offline' ? (
-                    <Button variant="outline" size="sm" onClick={() => handleTimeIn(teller)} className="h-7 w-24 text-xs bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/30">
-                      <PlayCircle className="h-3 w-3 mr-1.5" /> Time In
-                    </Button>
+                  {isOnline(teller) ? (
+                    <Badge className="bg-green-500/15 text-green-600 border-green-500/30 hover:bg-green-500/20 font-semibold gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+                      On Duty
+                    </Badge>
                   ) : (
-                    <Button variant="outline" size="sm" onClick={() => handleEndDuty(teller)} className="h-7 w-24 text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/30">
-                      <StopCircle className="h-3 w-3 mr-1.5" /> End Duty
-                    </Button>
+                    <Badge variant="secondary" className="text-muted-foreground font-semibold gap-1.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/50" />
+                      Off Duty
+                    </Badge>
                   )}
                 </TableCell>
-                 <TableCell>
-                    {teller.status && teller.status !== 'offline' && teller.last_time_in ? (
-                      <div className="flex items-center gap-1.5 font-mono text-sm text-primary font-medium">
-                        <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
-                        {new Date(teller.last_time_in).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                      </div>
-                    ) : (
-                      <span className="text-muted-foreground text-xs font-mono italic">--:--</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                     <div className="flex items-center gap-3">
-                      <span className={`font-bold text-sm tabular-nums ${teller.cash_advance > 0 ? 'text-accent' : 'text-primary'}`}>₱{(teller.cash_advance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-                    {teller.status && teller.status !== 'offline' && (
+
+                {/* Time-In */}
+                <TableCell>
+                  {isOnline(teller) && teller.last_time_in ? (
+                    <span className="font-mono text-sm text-primary font-medium">
+                      {formatTime(teller.last_time_in)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs font-mono italic">--:--</span>
+                  )}
+                </TableCell>
+
+                {/* Time-Out */}
+                <TableCell>
+                  {!isOnline(teller) && teller.last_time_out ? (
+                    <span className="font-mono text-sm text-muted-foreground font-medium">
+                      {formatTime(teller.last_time_out)}
+                    </span>
+                  ) : isOnline(teller) ? (
+                    <span className="text-muted-foreground text-xs font-mono italic">--:--</span>
+                  ) : (
+                    <span className="text-muted-foreground text-xs font-mono italic">--:--</span>
+                  )}
+                </TableCell>
+
+                {/* Cash Advance */}
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <span className={`font-bold text-sm tabular-nums ${teller.cash_advance > 0 ? 'text-accent' : 'text-primary'}`}>
+                      ₱{(teller.cash_advance || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
+                    {isOnline(teller) && (
                       <Popover open={allocatingFor === teller.id} onOpenChange={(open) => {
                         if (open) { setAllocatingFor(teller.id); setCashAmount("") } 
                         else setAllocatingFor(null)
@@ -249,6 +271,19 @@ export function TellerList({ tellers }: TellerListProps) {
                     )}
                   </div>
                 </TableCell>
+
+                {/* Action */}
+                <TableCell className="text-right">
+                  {!isOnline(teller) ? (
+                    <Button variant="outline" size="sm" onClick={() => handleTimeIn(teller)} className="h-7 text-xs bg-green-500/10 text-green-600 hover:bg-green-500/20 border-green-500/30">
+                      <PlayCircle className="h-3 w-3 mr-1.5" /> Time In
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" onClick={() => handleEndDuty(teller)} className="h-7 text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 border-destructive/30">
+                      <StopCircle className="h-3 w-3 mr-1.5" /> End Duty
+                    </Button>
+                  )}
+                </TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -257,7 +292,7 @@ export function TellerList({ tellers }: TellerListProps) {
           <div className="py-16 flex flex-col items-center text-muted-foreground bg-muted/5 border-t border-dashed">
              <Briefcase className="h-10 w-10 text-muted-foreground/30 mb-2" />
              <p className="font-semibold text-sm">No valid terminal personnel found.</p>
-             <p className="text-xs">Assign a user the 'teller' role inside the core database.</p>
+             <p className="text-xs">Assign a user the &apos;teller&apos; role inside the core database.</p>
           </div>
         )}
       </CardContent>

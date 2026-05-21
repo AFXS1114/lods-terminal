@@ -1,5 +1,6 @@
 "use client"
 
+import { useMemo } from "react"
 import { useSupabaseCollection } from "@/supabase/use-collection"
 import { RiderStats } from "@/components/riders/rider-stats"
 import { RiderList } from "@/components/riders/rider-list"
@@ -7,13 +8,53 @@ import { RiderSidebar } from "@/components/riders/rider-sidebar"
 import { Loader2 } from "lucide-react"
 
 export default function RidersPage() {
-  const { data: riders, isLoading: ridersLoading } = useSupabaseCollection("users", {
+  const { data: riders, isLoading: ridersLoading, refetch: refetchRiders } = useSupabaseCollection("users", {
     filter: { column: "role", operator: "==", value: "rider" }
   })
 
   const { data: activeOrders } = useSupabaseCollection("orders", {
     filter: { column: "status", operator: "in", value: ["pending", "in-transit", "picked-up"] }
   })
+
+  const today = useMemo(() => new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0], [])
+  const { data: deployments } = useSupabaseCollection("rider_deployments", {
+    filter: { column: "date", operator: "==", value: today }
+  })
+
+  const { data: ratings } = useSupabaseCollection("ratings")
+
+  const deployedRiders = useMemo(() => {
+    if (!riders || !deployments) return []
+    
+    const result: any[] = []
+    
+    riders.forEach((rider: any) => {
+      const deployment = deployments.find((d: any) => d.rider_id === rider.id)
+      if (deployment) {
+        const totalBudget = Array.isArray(deployment.budget) 
+          ? deployment.budget.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+          : 0
+          
+        const totalAdvances = Array.isArray(deployment.gas_budget)
+          ? deployment.gas_budget.reduce((sum: number, item: any) => sum + (Number(item.amount) || 0), 0)
+          : 0
+          
+        const riderRatings = ratings?.filter((r: any) => r.rider_id === rider.id) || []
+        const avgRating = riderRatings.length > 0
+          ? riderRatings.reduce((sum: number, r: any) => sum + (Number(r.rider_rating) || 0), 0) / riderRatings.length
+          : null
+          
+        result.push({
+          ...rider,
+          budget_on_hand: totalBudget,
+          cash_advance: totalAdvances,
+          rating: avgRating ? avgRating.toFixed(1) : 'N/A',
+        })
+      }
+    })
+    
+    return result
+  }, [riders, deployments, ratings])
 
   if (ridersLoading) {
     return (
@@ -39,16 +80,9 @@ export default function RidersPage() {
         </div>
       </div>
 
-      <RiderStats riders={riders || []} orders={activeOrders || []} />
+      <RiderStats riders={deployedRiders} orders={activeOrders || []} />
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-8 space-y-6">
-          <RiderList riders={riders || []} orders={activeOrders || []} />
-        </div>
-        <div className="lg:col-span-4">
-          <RiderSidebar riders={riders || []} />
-        </div>
-      </div>
+      <RiderList riders={deployedRiders} orders={activeOrders || []} refetchRiders={refetchRiders} />
     </div>
   )
 }

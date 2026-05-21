@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useSupabaseCollection } from "@/supabase/use-collection"
 import { supabase } from "@/supabase/config"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
-import { Users, Plus, Search, Phone, MapPin, Gift, Loader2, MoreHorizontal, User } from "lucide-react"
+import { Users, Plus, Search, Phone, MapPin, Gift, Loader2, MoreHorizontal, User, XCircle, RefreshCcw, Navigation } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { Progress } from "@/components/ui/progress"
 
@@ -27,7 +27,7 @@ export default function ClientsPage() {
   })
 
   // Real-time data
-  const { data: clients, isLoading } = useSupabaseCollection("clients", {
+  const { data: clients, isLoading, error } = useSupabaseCollection("clients", {
     orderBy: { column: "full_name", ascending: true }
   })
 
@@ -42,10 +42,10 @@ export default function ClientsPage() {
     })
 
     if (error) {
-      toast({ 
-        title: "Registration Failed", 
-        description: error.message, 
-        variant: "destructive" 
+      toast({
+        title: "Registration Failed",
+        description: error.message,
+        variant: "destructive"
       })
       return
     }
@@ -55,15 +55,35 @@ export default function ClientsPage() {
     setFormData({ full_name: "", phone: "", address: "", landmark: "" })
   }
 
-  const filteredClients = clients?.filter(c => 
-    c.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    c.phone?.toLowerCase().includes(searchTerm.toLowerCase())
-  ) || []
+  const filteredClients = useMemo(() => {
+    if (!clients) return []
+    return clients.filter(c => {
+      const name = (c.full_name || "").toLowerCase()
+      const phone = (c.phone || "").toLowerCase()
+      const search = searchTerm.toLowerCase()
+      return name.includes(search) || phone.includes(search)
+    })
+  }, [clients, searchTerm])
 
   if (isLoading) {
     return (
       <div className="flex h-[80vh] items-center justify-center">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex h-[80vh] flex-col items-center justify-center p-4 text-center">
+        <XCircle className="h-12 w-12 text-destructive mb-4" />
+        <h3 className="text-xl font-bold text-destructive">Database Connection Error</h3>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          {error.message || "We encountered an issue while fetching the client database. Please ensure your database tables are correctly configured."}
+        </p>
+        <Button onClick={() => window.location.reload()} variant="outline" className="mt-6">
+          <RefreshCcw className="mr-2 h-4 w-4" /> Retry Connection
+        </Button>
       </div>
     )
   }
@@ -90,19 +110,19 @@ export default function ClientsPage() {
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="name" className="text-right">Full Name</Label>
-                  <Input id="name" value={formData.full_name} onChange={e => setFormData({...formData, full_name: e.target.value})} className="col-span-3" required />
+                  <Input id="name" value={formData.full_name} onChange={e => setFormData({ ...formData, full_name: e.target.value })} className="col-span-3" required />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="phone" className="text-right">Phone</Label>
-                  <Input id="phone" value={formData.phone} onChange={e => setFormData({...formData, phone: e.target.value})} className="col-span-3" placeholder="09XX-XXX-XXXX" />
+                  <Input id="phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="col-span-3" placeholder="09XX-XXX-XXXX" />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="address" className="text-right">Address</Label>
-                  <Input id="address" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="col-span-3" />
+                  <Input id="address" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="col-span-3" />
                 </div>
                 <div className="grid grid-cols-4 items-center gap-4">
                   <Label htmlFor="landmark" className="text-right">Landmark</Label>
-                  <Input id="landmark" value={formData.landmark} onChange={e => setFormData({...formData, landmark: e.target.value})} className="col-span-3" placeholder="Near church, green gate, etc." />
+                  <Input id="landmark" value={formData.landmark} onChange={e => setFormData({ ...formData, landmark: e.target.value })} className="col-span-3" placeholder="Near church, green gate, etc." />
                 </div>
               </div>
               <DialogFooter>
@@ -116,8 +136,8 @@ export default function ClientsPage() {
       <div className="flex items-center gap-2 max-w-md">
         <div className="relative w-full">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search clients by name or phone..." 
+          <Input
+            placeholder="Search clients by name or phone..."
             className="pl-8 bg-background shadow-sm"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -154,7 +174,7 @@ export default function ClientsPage() {
                 {filteredClients.map((client) => {
                   const progress = (client.loyalty_count || 0) / 11 * 100
                   const isNextFree = client.loyalty_count === 10
-                  
+
                   return (
                     <TableRow key={client.id} className="group hover:bg-muted/30 transition-colors">
                       <TableCell>
@@ -180,6 +200,11 @@ export default function ClientsPage() {
                               "{client.landmark}"
                             </span>
                           )}
+                          {(client.latitude || client.longitude) && (
+                            <span className="text-[9px] font-mono text-primary flex items-center gap-1">
+                              <Navigation className="h-2.5 w-2.5" /> {client.latitude?.toFixed(4)}, {client.longitude?.toFixed(4)}
+                            </span>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className="w-[300px]">
@@ -197,9 +222,9 @@ export default function ClientsPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
-                           <Button variant="ghost" size="icon" className="h-8 w-8">
-                             <MoreHorizontal className="h-4 w-4" />
-                           </Button>
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>

@@ -2,6 +2,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/supabase/config"
 import { useToast } from "@/hooks/use-toast"
 import { 
@@ -52,10 +53,12 @@ import { RiderEditSheet } from "./rider-edit-sheet"
 interface RiderListProps {
   riders: any[]
   orders: any[]
+  refetchRiders?: () => Promise<void>
 }
 
-export function RiderList({ riders, orders }: RiderListProps) {
+export function RiderList({ riders, orders, refetchRiders }: RiderListProps) {
   const [searchTerm, setSearchTerm] = useState("")
+  const router = useRouter()
   const [statusFilter, setStatusFilter] = useState("all")
   const [vehicleFilter, setVehicleFilter] = useState("all")
   const [selectedRider, setSelectedRider] = useState<any | null>(null)
@@ -89,7 +92,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
           amount: Number(budgetAmount),
           type: "budget_allocation",
           timestamp: new Date().toISOString(),
-          date: new Date().toISOString().split('T')[0]
+          date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
         })
       }
 
@@ -132,7 +135,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
           amount: Number(advanceAmount),
           type: "cash_advance",
           timestamp: new Date().toISOString(),
-          date: new Date().toISOString().split('T')[0]
+          date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
         })
       }
 
@@ -152,7 +155,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
         role: "rider",
         time_in: new Date().toISOString(),
         time_out: null,
-        date: new Date().toISOString().split('T')[0]
+        date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0]
       }).select().single()
 
       if (dtrError) throw dtrError
@@ -166,6 +169,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
       }).eq('id', rider.id)
 
       toast({ title: "Asset Online", description: `${rider.name} is now deployed on duty.` })
+      if (refetchRiders) refetchRiders()
     } catch (e) {
       toast({ title: "Error", description: "Failed to time in.", variant: "destructive" })
     }
@@ -186,7 +190,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
           role: "rider",
           time_in: rider.last_time_in,
           time_out: new Date().toISOString(),
-          date: new Date().toISOString().split('T')[0],
+          date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
           final_cash_advance: rider.cash_advance || 0,
           final_budget: rider.budget_on_hand || 0
         })
@@ -201,6 +205,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
       }).eq('id', rider.id)
 
       toast({ title: "Duty Terminated", description: `${rider.name} clocked out. Remaining budget and advances wiped.` })
+      if (refetchRiders) refetchRiders()
     } catch (e) {
       toast({ title: "Error", description: "Failed to end duty.", variant: "destructive" })
     }
@@ -225,7 +230,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
             role: "rider",
             time_in: rider.last_time_in,
             time_out: new Date().toISOString(),
-            date: new Date().toISOString().split('T')[0],
+            date: new Date(new Date().getTime() - new Date().getTimezoneOffset() * 60000).toISOString().split('T')[0],
             final_cash_advance: rider.cash_advance || 0,
             final_budget: rider.budget_on_hand || 0
           })
@@ -331,10 +336,10 @@ export function RiderList({ riders, orders }: RiderListProps) {
           <TableHeader className="bg-muted/30">
             <TableRow>
               <TableHead>Rider Profile</TableHead>
-              <TableHead>Status</TableHead>
+
               <TableHead>Rating</TableHead>
               <TableHead>Budget</TableHead>
-              <TableHead>Advances</TableHead>
+              <TableHead>Gas</TableHead>
               <TableHead>Load</TableHead>
               <TableHead>Vehicle</TableHead>
               <TableHead className="text-right">Actions</TableHead>
@@ -355,27 +360,7 @@ export function RiderList({ riders, orders }: RiderListProps) {
                     </div>
                   </div>
                 </TableCell>
-                <TableCell>
-                  {!rider.status || rider.status === 'offline' ? (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleTimeIn(rider)}
-                      className="h-7 w-24 text-xs bg-green-500/10 text-green-600 hover:bg-green-500/20 hover:text-green-700 border border-green-500/30 transition-colors shadow-sm"
-                    >
-                      <PlayCircle className="h-3 w-3 mr-1.5" /> Time In
-                    </Button>
-                  ) : (
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={() => handleEndDuty(rider)}
-                      className="h-7 w-24 text-xs bg-destructive/10 text-destructive hover:bg-destructive/20 hover:text-destructive border border-destructive/30 transition-colors shadow-sm"
-                    >
-                      <StopCircle className="h-3 w-3 mr-1.5" /> End Duty
-                    </Button>
-                  )}
-                </TableCell>
+
                 <TableCell>
                   <div className="flex items-center gap-1 font-bold text-sm">
                     <Star className="h-3 w-3 text-accent fill-accent" />
