@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, Truck } from "lucide-react"
+import { OrderDetailModal } from "@/components/orders/order-detail-modal"
 
 export default function RidersDeliveriesPage() {
   const { data: orders, isLoading } = useSupabaseCollection("orders", {
@@ -13,6 +14,8 @@ export default function RidersDeliveriesPage() {
   })
   const [startDate, setStartDate] = useState<string>("")
   const [endDate, setEndDate] = useState<string>("")
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   // Filter orders by date
   const filteredOrders = useMemo(() => {
@@ -142,8 +145,18 @@ export default function RidersDeliveriesPage() {
                 <TableBody>
                   {riderOrders.map((order) => (
                     <TableRow key={order.id} className="hover:bg-muted/30">
-                      <TableCell className="font-mono text-xs font-bold text-primary">
-                        {order.booking_no}
+                      <TableCell>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedOrder(order)
+                            setIsModalOpen(true)
+                          }}
+                          className="font-mono text-xs font-bold text-primary hover:text-primary/80 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors text-left cursor-pointer"
+                          title="Click to view order details & rider info"
+                        >
+                          {order.booking_no || 'LODS-XXXXX'}
+                        </button>
                       </TableCell>
                       <TableCell className="text-sm">{order.merchant_name || 'N/A'}</TableCell>
                       <TableCell className="text-sm font-medium">{order.customer_name}</TableCell>
@@ -172,6 +185,15 @@ export default function RidersDeliveriesPage() {
           </Card>
         )
       })}
+
+      <OrderDetailModal
+        order={selectedOrder}
+        open={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false)
+          setSelectedOrder(null)
+        }}
+      />
     </div>
   )
 }

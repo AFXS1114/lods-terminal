@@ -1,18 +1,28 @@
 "use client"
 
+import { useState } from "react"
 import { useSupabaseCollection } from "@/supabase/use-collection"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { BookingForm } from "@/components/orders/booking-form"
 import { RiderTransferPopover } from "@/components/orders/rider-transfer-popover"
+import { OrderDetailModal } from "@/components/orders/order-detail-modal"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Loader2 } from "lucide-react"
 
 export default function OrdersPage() {
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
   const { data: orders, isLoading } = useSupabaseCollection("orders", {
     orderBy: { column: "created_at", ascending: false }
   })
+
+  const handleOpenOrder = (order: any) => {
+    setSelectedOrder(order)
+    setIsModalOpen(true)
+  }
 
   const getStatusVariant = (status: string) => {
     switch (status?.toLowerCase()) {
@@ -73,15 +83,22 @@ export default function OrdersPage() {
                   <TableBody>
                     {!orders || orders.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                        <TableCell colSpan={7} className="h-24 text-center text-muted-foreground">
                           No orders found. Create your first booking.
                         </TableCell>
                       </TableRow>
                     ) : (
                       orders.map((order) => (
                         <TableRow key={order.id} className="hover:bg-muted/30">
-                          <TableCell className="font-mono text-xs font-bold text-primary">
-                            {order.booking_no || 'LODS-XXXXX'}
+                          <TableCell>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenOrder(order)}
+                              className="font-mono text-xs font-bold text-primary hover:text-primary/80 hover:underline inline-flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-primary/10 transition-colors text-left cursor-pointer"
+                              title="Click to view order details & rider info"
+                            >
+                              {order.booking_no || 'LODS-XXXXX'}
+                            </button>
                           </TableCell>
                           <TableCell className="text-sm font-medium">{order.customer_name}</TableCell>
                           <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
@@ -117,6 +134,16 @@ export default function OrdersPage() {
           <BookingForm />
         </TabsContent>
       </Tabs>
+
+      <OrderDetailModal
+        order={selectedOrder}
+        open={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false)
+          setSelectedOrder(null)
+        }}
+      />
     </div>
   )
 }
+
