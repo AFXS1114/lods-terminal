@@ -12,8 +12,8 @@ import { useToast } from "@/hooks/use-toast"
 import { Separator } from "@/components/ui/separator"
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("admin@lods.com")
-  const [password, setPassword] = useState("123123")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const router = useRouter()
@@ -100,7 +100,7 @@ export default function LoginPage() {
                 <Input 
                   id="email" 
                   type="email" 
-                  placeholder="admin@lods.com" 
+                  placeholder="Enter your email" 
                   required 
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -113,6 +113,7 @@ export default function LoginPage() {
                 <Input 
                   id="password" 
                   type="password" 
+                  placeholder="Enter your password" 
                   required 
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
